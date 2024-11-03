@@ -284,12 +284,11 @@ function fetchThumbnail(recordingId) {
 }
 
 const closeVideoPlayer = (event) => {
-    if (event.target === videoPlayer) {
+        const videoPlayer = document.getElementById('videoplayer');
         videoPlayer.pause();
         videoPlayer.src = '';
         document.getElementById("playercontainer").style.display = "none";
         window.removeEventListener('click', closeVideoPlayer);
-    }
 };
 
 
