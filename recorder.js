@@ -159,32 +159,106 @@ function stopMediaTracks() {
 }
 
 
+const generateThumbnail = async (videoBlob, options = {}) => {
+    const {
+        captureTime = 1,
+        maxWidth = 320,
+        maxHeight = 180,
+        format = 'image/jpeg',
+        quality = 0.7
+    } = options;
 
-async function generateThumbnail(blob) {
-    // Create a video element to extract a frame
     return new Promise((resolve, reject) => {
+        // Create video element
         const video = document.createElement('video');
-        video.src = URL.createObjectURL(blob);
-        video.crossOrigin = 'anonymous';
-        video.addEventListener('loadeddata', () => {
-            // Wait for the video to be ready
-            video.currentTime = 1; // Capture frame at 1 second
-        });
-        video.addEventListener('seeked', () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob((thumbnailBlob) => {
-                resolve(thumbnailBlob);
-            }, 'image/jpeg');
-        });
-        video.onerror = (event) => {
-            reject(new Error('Error generating thumbnail'));
+        video.autoplay = false;
+        video.muted = true;
+        video.volume = 0;
+
+        // Create object URL for the video blob
+        const videoUrl = URL.createObjectURL(videoBlob);
+        
+        // Set up video event handlers
+        video.onerror = () => {
+            cleanup();
+            reject(new Error('Error loading video'));
         };
+
+        video.onloadedmetadata = () => {
+            // Calculate thumbnail dimensions while maintaining aspect ratio
+            const aspectRatio = video.videoWidth / video.videoHeight;
+            let width = Math.min(video.videoWidth, maxWidth);
+            let height = width / aspectRatio;
+            
+            if (height > maxHeight) {
+                height = maxHeight;
+                width = height * aspectRatio;
+            }
+
+            // Create canvas for thumbnail
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            // Seek to specified time
+            video.currentTime = Math.min(captureTime, video.duration);
+        };
+
+        video.onseeked = () => {
+            try {
+                // Draw the video frame to canvas
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas dimensions
+                const aspectRatio = video.videoWidth / video.videoHeight;
+                let width = Math.min(video.videoWidth, maxWidth);
+                let height = width / aspectRatio;
+                
+                if (height > maxHeight) {
+                    height = maxHeight;
+                    width = height * aspectRatio;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+
+                // Draw video frame with smoothing
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(video, 0, 0, width, height);
+
+                // Convert canvas to blob
+                canvas.toBlob(
+                    (blob) => {
+                        cleanup();
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Failed to generate thumbnail'));
+                        }
+                    },
+                    format,
+                    quality
+                );
+            } catch (error) {
+                cleanup();
+                reject(error);
+            }
+        };
+
+        // Cleanup function
+        const cleanup = () => {
+            URL.revokeObjectURL(videoUrl);
+            video.remove();
+        };
+
+        // Start loading the video
+        video.src = videoUrl;
     });
-}
+};
+
 
 function saveRecording(blob, thumbnail, type) {
     const transaction = db.transaction(['recordings', 'thumbnails'], 'readwrite');
@@ -407,7 +481,7 @@ async function initFaceMesh() {
         try {
             faceMesh = new FaceMesh({
                 locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+                    return `face_mesh/${file}`;
                 }
             });
 
