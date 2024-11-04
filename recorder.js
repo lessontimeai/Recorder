@@ -31,6 +31,7 @@ request.onupgradeneeded = (event) => {
     }
 };
 
+
 request.onsuccess = (event) => {
     db = event.target.result;
     loadRecordings();
@@ -53,6 +54,7 @@ function stopTimer() {
 let screenStream = null;
 let micStream = null;
 let combinedStream = null;
+let screenVideo = null;
 
 // Face Mesh Variables
 let faceMesh;
@@ -83,37 +85,41 @@ recordBtn.addEventListener('click', async () => {
         try {
             // Get screen and microphone streams
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            screenVideo = document.getElementById('screenvideo');
+            screenVideo.srcObject = screenStream;
+            screenVideo.play();
+            renderVideoToCanvas();
+
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            faceMeshCanvas.width = 3840;
+            faceMeshCanvas.height = 2160;
+            const canvasStream = faceMeshCanvas.captureStream(30); // Capture the canvas at 30 fps
+            
+            initFaceMesh();
+
 
             // Combine screen and microphone streams
-            combinedStream = new MediaStream([...screenStream.getTracks(), ...micStream.getTracks()]);
+            combinedStream = new MediaStream([
+                ...canvasStream.getTracks(), 
+                ...micStream.getTracks(), 
+                ]);
 
-            // Initialize MediaRecorder for screen recording
-            mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4;' });
+            recordedVideoChunks = []; // Clear previous video chunks
 
-            mediaRecorder.ondataavailable = (event) => {
+            videoRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4' });
+            videoRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
-                    recordedChunks.push(event.data);
+                    recordedVideoChunks.push(event.data);
                 }
             };
-
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: 'video/mp4' });
-                generateThumbnail(blob).then(thumbnail => {
-                    saveRecording(blob, thumbnail, 'screen');
-                }).catch(err => {
-                    console.error('Error generating thumbnail:', err);
-                    saveRecording(blob, null, 'screen');
-                });
-                recordedChunks = []; // Clear after saving
-
-                // Stop all media tracks to end screen sharing and microphone
-                stopMediaTracks();
+        
+            videoRecorder.onstop = () => {
+                const blob = new Blob(recordedVideoChunks, { type: 'video/mp4' });
+                saveRecording(blob, null, 'face'); // Save the face recording
             };
-
-            // Start recording
-            mediaRecorder.start();
-            startCanvasRecording(); // Start recording the canvas
+        
+            videoRecorder.start();
+            isRecordingVideo = true;
 
         } catch (err) {
             console.error('Error accessing media devices.', err);
@@ -151,6 +157,8 @@ function stopMediaTracks() {
         combinedStream = null;
     }
 }
+
+
 
 async function generateThumbnail(blob) {
     // Create a video element to extract a frame
@@ -413,7 +421,7 @@ async function initFaceMesh() {
             faceMesh.onResults(onResults);
 
             const webcamVideo = document.getElementById('webcam');
-
+            
             camera = new Camera(webcamVideo, {
                 onFrame: async () => {
                     await faceMesh.send({ image: webcamVideo });
@@ -431,59 +439,52 @@ async function initFaceMesh() {
     });
 }
 
-function onResults(results) {
+let latest_results = null;
+function renderVideoToCanvas() {
+    faceMeshCtx.drawImage(screenVideo, 0, 0, faceMeshCtx.canvas.width, faceMeshCtx.canvas.height);
+    drawResults(latest_results);
+    requestAnimationFrame(renderVideoToCanvas);  // Recursively call to keep updating
+}
+  
+
+function onResults(results)
+{
+    latest_results = results;
+}
+
+function drawResults(results) {
     // Clear canvas
+    if (results==null) return;
+    /*
     faceMeshCtx.save();
     faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
+    
     faceMeshCtx.fillStyle = 'black'; // Set the background color to black
     faceMeshCtx.fillRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height); // Fill the canvas with black
-
-
+    */
     if (results.multiFaceLandmarks) {
         for (const landmarks of results.multiFaceLandmarks) {
-            drawConnectors(faceMeshCtx, landmarks, FACEMESH_TESSELATION,
-                { color: '#C0C0C070', lineWidth: 1 });
-            drawConnectors(faceMeshCtx, landmarks, FACEMESH_RIGHT_EYE, { color: '#30FF30', lineWidth: 1 });
-            drawConnectors(faceMeshCtx, landmarks, FACEMESH_LEFT_EYE, { color: '#30FF30', lineWidth: 1 });
-            drawConnectors(faceMeshCtx, landmarks, FACEMESH_FACE_OVAL, { color: '#E0E0E0', lineWidth: 1 });
-            drawConnectors(faceMeshCtx, landmarks, FACEMESH_LIPS, { color: '#E0E0E0', lineWidth: 1 });
 
-            // Extract face landmark points (optional)
-            const facePoints = landmarks.map(point => {
-                return {
-                    x: point.x * faceMeshCanvas.width,
-                    y: point.y * faceMeshCanvas.height
-                };
-            });
-            // Log face points if needed
-            //console.log(facePoints);
+            const scaledLandmarks = landmarks.map(landmark => ({
+                x: landmark.x * 0.33 + 0,
+                y: landmark.y * 0.33 + 0.7,
+                z: landmark.z * 0.33
+            }));
+
+            drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_TESSELATION,
+                { color: '#C0C0C070', lineWidth: 0.5 });
+            drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_RIGHT_EYE, { color: '#30FF30', lineWidth: 0.5 });
+            drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_LEFT_EYE, { color: '#30FF30', lineWidth: 0.5 });
+            drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_FACE_OVAL, { color: '#E0E0E0', lineWidth: 0.5 });
+            drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_LIPS, { color: '#E0E0E0', lineWidth: 0.5 });
         }
     }
 
     faceMeshCtx.restore();
+    
 }
 
-// Start recording canvas video
-function startCanvasRecording() {
-    recordedVideoChunks = []; // Clear previous video chunks
 
-    const canvasStream = faceMeshCanvas.captureStream(30); // Capture the canvas at 30 fps
-    videoRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/mp4' });
-
-    videoRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-            recordedVideoChunks.push(event.data);
-        }
-    };
-
-    videoRecorder.onstop = () => {
-        const blob = new Blob(recordedVideoChunks, { type: 'video/mp4' });
-        saveRecording(blob, null, 'face'); // Save the face recording
-    };
-
-    videoRecorder.start();
-    isRecordingVideo = true;
-}
 
 // Stop recording canvas video
 function stopCanvasRecording() {
