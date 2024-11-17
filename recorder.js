@@ -56,7 +56,7 @@ const processFrames = async () => {
     if (webcamVideo.readyState === 4 && recording) {
         await faceMesh.send({ image: webcamVideo });
     }
-    requestIdleCallback(processFrames);
+    requestIdleCallback(processFrames, { timeout: 50 });
 };
 
 // Initialize Face Mesh
@@ -121,8 +121,8 @@ let startRecording = async () => {
             }
 
             // Set up canvas
-            faceMeshCanvas.width = 1920;
-            faceMeshCanvas.height = 1080;
+            faceMeshCanvas.width = 4096;
+            faceMeshCanvas.height = 2160;
             
             // Get microphone stream
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -131,7 +131,7 @@ let startRecording = async () => {
             startRendering();
 
             // Combine streams
-            const canvasStream = faceMeshCanvas.captureStream(30);
+            const canvasStream = faceMeshCanvas.captureStream(60);
             combinedStream = new MediaStream([
                 ...canvasStream.getTracks(),
                 ...micStream.getTracks()
@@ -218,7 +218,7 @@ function startRendering() {
             // Draw face mesh over the screen video
             drawResults(latest_results);
         }
-    }, 10);  //  100FPS
+    }, 20);  //  100FPS
 }
 
 function stopRendering() {

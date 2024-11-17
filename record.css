@@ -132,22 +132,6 @@ h1 {
     width: 100%;
     height: 100%;
 }
-/* Responsive Design */
-@media (max-width: 800px) {
-    .recorder-container {
-        flex-direction: column;
-        align-items: center;
-    }
-    .recorder-controls {
-        margin-right: 0;
-        margin-bottom: 20px;
-    }
-    #face-mesh-container {
-        width: 100%;
-        max-width: 300px;
-        height: auto;
-    }
-}
 
 #playercontainer {
     position: fixed;
