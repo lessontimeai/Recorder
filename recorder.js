@@ -79,12 +79,9 @@ async function initFaceMesh() {
         webcamVideo.srcObject = webcamStream;
         await webcamVideo.play();
 
-
-
         // Start processing frames
         const processFrames = async () => {
             if (webcamVideo.readyState === 4) {
-                console.log(faceMesh);
                 await faceMesh.send({ image: webcamVideo });
             }
             if (recording) {
@@ -100,11 +97,82 @@ async function initFaceMesh() {
     }
 }
 
-// Record button click handler
-recordBtn.addEventListener('click', async () => {
+// Function to capture thumbnail from faceMeshCanvas
+async function captureThumbnail() {
+    try {
+        // Create a new canvas element with fixed dimensions
+        const thumbnailCanvas = document.createElement('canvas');
+        const THUMBNAIL_WIDTH = 320;  // Standard thumbnail width
+        const THUMBNAIL_HEIGHT = 180; // 16:9 aspect ratio
+
+        thumbnailCanvas.width = THUMBNAIL_WIDTH;
+        thumbnailCanvas.height = THUMBNAIL_HEIGHT;
+        const thumbnailCtx = thumbnailCanvas.getContext('2d');
+
+        // First, draw the screen content
+        if (screenVideo && screenVideo.readyState === 4) {
+            // Use a try-catch block for the drawing operation
+            try {
+                thumbnailCtx.drawImage(
+                    screenVideo, 
+                    0, 0, screenVideo.videoWidth, screenVideo.videoHeight,
+                    0, 0, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT
+                );
+            } catch (error) {
+                console.warn('Could not draw screen content:', error);
+            }
+        }
+
+        // Then overlay face mesh if available
+        if (latest_results && latest_results.multiFaceLandmarks) {
+            // Scale factors for the thumbnail
+            const scaleX = THUMBNAIL_WIDTH / faceMeshCanvas.width;
+            const scaleY = THUMBNAIL_HEIGHT / faceMeshCanvas.height;
+
+            for (const landmarks of latest_results.multiFaceLandmarks) {
+                const scaledLandmarks = landmarks.map(landmark => ({
+                    x: landmark.x * 0.33 * scaleX,
+                    y: landmark.y * 0.33 * scaleY + (0.7 * scaleY),
+                    z: landmark.z * 0.33
+                }));
+
+                // Draw face mesh elements with adjusted line widths for thumbnail size
+                drawConnectors(thumbnailCtx, scaledLandmarks, FACEMESH_TESSELATION,
+                    { color: '#C0C0C070', lineWidth: 0.25 });
+                drawConnectors(thumbnailCtx, scaledLandmarks, FACEMESH_RIGHT_EYE,
+                    { color: '#30FF30', lineWidth: 0.25 });
+                drawConnectors(thumbnailCtx, scaledLandmarks, FACEMESH_LEFT_EYE,
+                    { color: '#30FF30', lineWidth: 0.25 });
+                drawConnectors(thumbnailCtx, scaledLandmarks, FACEMESH_FACE_OVAL,
+                    { color: '#E0E0E0', lineWidth: 0.25 });
+                drawConnectors(thumbnailCtx, scaledLandmarks, FACEMESH_LIPS,
+                    { color: '#E0E0E0', lineWidth: 0.25 });
+            }
+        }
+
+        // Convert to blob with better quality
+        return new Promise((resolve, reject) => {
+            thumbnailCanvas.toBlob(
+                (blob) => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error('Failed to create thumbnail blob'));
+                    }
+                },
+                'image/jpeg',
+                0.85  // Increased quality for better thumbnails
+            );
+        });
+    } catch (error) {
+        console.error('Error in captureThumbnail:', error);
+        return null;
+    }
+}
+
+let startRecording = async () => {
     if (!recording) {
         try {
-            // Start Recording
             recording = true;
             recordBtn.textContent = 'Stop Recording';
             recordBtn.classList.add('recording');
@@ -150,14 +218,15 @@ recordBtn.addEventListener('click', async () => {
                 }
             };
 
-            videoRecorder.onstop = () => {
-                const blob = new Blob(recordedVideoChunks, { type: 'video/mp4' });
-                saveRecording(blob, null, 'face');
-            };
+        videoRecorder.onstop = async () => {
+        const blob = new Blob(recordedVideoChunks, { type: 'video/mp4' });
+        setTimeout(async () => {
+        const thumbnail = await captureThumbnail();
+        saveRecording(blob, thumbnail, 'face');}, 2000);}
+
 
             videoRecorder.start();
             isRecordingVideo = true;
-
         } catch (err) {
             console.error('Error starting recording:', err);
             stopRecording();
@@ -165,7 +234,10 @@ recordBtn.addEventListener('click', async () => {
     } else {
         stopRecording();
     }
-});
+}
+
+// Record button click handler
+recordBtn.addEventListener('click', startRecording);
 
 function stopRecording() {
     recording = false;
@@ -381,7 +453,7 @@ function saveRecording(blob, thumbnail, type) {
         id: recordingId,
         blob: blob,
         timestamp: recordingId,
-        type: type // Store type for identification
+        type: type
     };
 
     const recordingRequest = recordingsStore.put(recording);
@@ -389,7 +461,7 @@ function saveRecording(blob, thumbnail, type) {
     recordingRequest.onsuccess = () => {
         console.log('Recording saved:', recordingId);
         if (thumbnail) {
-            const thumbnailId = recordingId; // Use the same ID for easier reference
+            const thumbnailId = recordingId;
             const thumbnailData = {
                 id: thumbnailId,
                 recordingId: recordingId,
