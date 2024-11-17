@@ -349,9 +349,9 @@ function drawResults(results) {
     if (results.multiFaceLandmarks) {
         for (const landmarks of results.multiFaceLandmarks) {
             const scaledLandmarks = landmarks.map(landmark => ({
-                x: landmark.x * 0.33 + 0.7,
-                y: landmark.y * 0.33 + 0.7,
-                z: landmark.z * 0.33
+                x: landmark.x * 0.25 + 0.75,
+                y: landmark.y * 0.25 + 0.75,
+                z: landmark.z * 0.25
             }));
 
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_TESSELATION,
