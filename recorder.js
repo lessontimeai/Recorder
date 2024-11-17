@@ -167,14 +167,6 @@ recordBtn.addEventListener('click', async () => {
     }
 });
 
-const closeVideoPlayer = (event) => {
-    const videoPlayer = document.getElementById('videoplayer');
-    videoPlayer.pause();
-    videoPlayer.src = '';
-    document.getElementById("playercontainer").style.display = "none";
-    window.removeEventListener('click', closeVideoPlayer);
-};
-
 function stopRecording() {
     recording = false;
     recordBtn.textContent = 'Start Recording';
@@ -235,15 +227,15 @@ function drawResults(results) {
             }));
 
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_TESSELATION,
-                { color: '#C0C0C070', lineWidth: 1 });
+                { color: '#C0C0C070', lineWidth: 0.5 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_RIGHT_EYE, 
-                { color: '#30FF30', lineWidth: 1 });
+                { color: '#30FF30', lineWidth: 0.5 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_LEFT_EYE, 
-                { color: '#30FF30', lineWidth: 1 });
+                { color: '#30FF30', lineWidth: 0.5 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_FACE_OVAL, 
-                { color: '#E0E0E0', lineWidth: 1 });
+                { color: '#E0E0E0', lineWidth: 0.5 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_LIPS, 
-                { color: '#E0E0E0', lineWidth: 1 });
+                { color: '#E0E0E0', lineWidth: 0.5 });
         }
     }
 }
@@ -447,4 +439,15 @@ function deleteRecording(recordingId) {
             reject(event.target.error);
         };
     });
+}
+
+
+// Close video player function
+function closeVideoPlayer(event) {
+    const videoPlayer = document.getElementById('videoplayer');
+    const playerContainer = document.getElementById('playercontainer');
+    videoPlayer.pause();
+    videoPlayer.src = '';
+    playerContainer.style.display = 'none';
+    window.removeEventListener('click', closeVideoPlayer);
 }
