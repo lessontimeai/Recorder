@@ -50,6 +50,15 @@ request.onsuccess = (event) => {
     loadRecordings();
 };
 
+// Start processing frames
+const processFrames = async () => {
+    const webcamVideo = document.getElementById('webcam');
+    if (webcamVideo.readyState === 4 && recording) {
+        await faceMesh.send({ image: webcamVideo });
+    }
+    requestIdleCallback(processFrames);
+};
+
 // Initialize Face Mesh
 async function initFaceMesh() {
     try {
@@ -80,15 +89,8 @@ async function initFaceMesh() {
         webcamVideo.srcObject = webcamStream;
         await webcamVideo.play();
 
-        // Start processing frames
-        const processFrames = async () => {
-            if (webcamVideo.readyState === 4 && recording) {
-                await faceMesh.send({ image: webcamVideo });
-            }
-            requestAnimationFrame(processFrames);
-        };
 
-        processFrames();
+        requestIdleCallback(processFrames);
         return true;
     } catch (error) {
         console.error('Error initializing Face Mesh:', error);
