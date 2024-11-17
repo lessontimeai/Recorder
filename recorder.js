@@ -23,6 +23,7 @@ let faceMesh;
 let faceMeshCanvas = document.getElementById('facepoints');
 let faceMeshCtx = faceMeshCanvas.getContext('2d');
 let latest_results = null;
+let recordingInterval = null;
 
 // Initialize IndexedDB
 let db;
@@ -81,12 +82,10 @@ async function initFaceMesh() {
 
         // Start processing frames
         const processFrames = async () => {
-            if (webcamVideo.readyState === 4) {
+            if (webcamVideo.readyState === 4 && recording) {
                 await faceMesh.send({ image: webcamVideo });
             }
-            if (recording) {
-                requestAnimationFrame(processFrames);
-            }
+            requestAnimationFrame(processFrames);
         };
 
         processFrames();
@@ -97,79 +96,7 @@ async function initFaceMesh() {
     }
 }
 
-// Function to capture thumbnail from faceMeshCanvas
-async function captureThumbnail() {
-    try {
-        // Create a new canvas element with fixed dimensions
-        const thumbnailCanvas = document.createElement('canvas');
-        const THUMBNAIL_WIDTH = 320;  // Standard thumbnail width
-        const THUMBNAIL_HEIGHT = 180; // 16:9 aspect ratio
-
-        thumbnailCanvas.width = THUMBNAIL_WIDTH;
-        thumbnailCanvas.height = THUMBNAIL_HEIGHT;
-        const thumbnailCtx = thumbnailCanvas.getContext('2d');
-
-        // First, draw the screen content
-        if (screenVideo && screenVideo.readyState === 4) {
-            // Use a try-catch block for the drawing operation
-            try {
-                thumbnailCtx.drawImage(
-                    screenVideo, 
-                    0, 0, screenVideo.videoWidth, screenVideo.videoHeight,
-                    0, 0, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT
-                );
-            } catch (error) {
-                console.warn('Could not draw screen content:', error);
-            }
-        }
-
-        // Then overlay face mesh if available
-        if (latest_results && latest_results.multiFaceLandmarks) {
-            // Scale factors for the thumbnail
-            const scaleX = THUMBNAIL_WIDTH / faceMeshCanvas.width;
-            const scaleY = THUMBNAIL_HEIGHT / faceMeshCanvas.height;
-
-            for (const landmarks of latest_results.multiFaceLandmarks) {
-                const scaledLandmarks = landmarks.map(landmark => ({
-                    x: landmark.x * 0.33 * scaleX,
-                    y: landmark.y * 0.33 * scaleY + (0.7 * scaleY),
-                    z: landmark.z * 0.33
-                }));
-
-                // Draw face mesh elements with adjusted line widths for thumbnail size
-                drawConnectors(thumbnailCtx, scaledLandmarks, FACEMESH_TESSELATION,
-                    { color: '#C0C0C070', lineWidth: 0.25 });
-                drawConnectors(thumbnailCtx, scaledLandmarks, FACEMESH_RIGHT_EYE,
-                    { color: '#30FF30', lineWidth: 0.25 });
-                drawConnectors(thumbnailCtx, scaledLandmarks, FACEMESH_LEFT_EYE,
-                    { color: '#30FF30', lineWidth: 0.25 });
-                drawConnectors(thumbnailCtx, scaledLandmarks, FACEMESH_FACE_OVAL,
-                    { color: '#E0E0E0', lineWidth: 0.25 });
-                drawConnectors(thumbnailCtx, scaledLandmarks, FACEMESH_LIPS,
-                    { color: '#E0E0E0', lineWidth: 0.25 });
-            }
-        }
-
-        // Convert to blob with better quality
-        return new Promise((resolve, reject) => {
-            thumbnailCanvas.toBlob(
-                (blob) => {
-                    if (blob) {
-                        resolve(blob);
-                    } else {
-                        reject(new Error('Failed to create thumbnail blob'));
-                    }
-                },
-                'image/jpeg',
-                0.85  // Increased quality for better thumbnails
-            );
-        });
-    } catch (error) {
-        console.error('Error in captureThumbnail:', error);
-        return null;
-    }
-}
-
+// Start and Stop Recording Functions
 let startRecording = async () => {
     if (!recording) {
         try {
@@ -192,14 +119,14 @@ let startRecording = async () => {
             }
 
             // Set up canvas
-            faceMeshCanvas.width = 3840;
-            faceMeshCanvas.height = 2160;
+            faceMeshCanvas.width = 1920;
+            faceMeshCanvas.height = 1080;
             
             // Get microphone stream
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-            // Start canvas rendering
-            renderVideoToCanvas();
+            // Start rendering with setInterval
+            startRendering();
 
             // Combine streams
             const canvasStream = faceMeshCanvas.captureStream(30);
@@ -218,12 +145,13 @@ let startRecording = async () => {
                 }
             };
 
-        videoRecorder.onstop = async () => {
-        const blob = new Blob(recordedVideoChunks, { type: 'video/mp4' });
-        setTimeout(async () => {
-        const thumbnail = await captureThumbnail();
-        saveRecording(blob, thumbnail, 'face');}, 2000);}
-
+            videoRecorder.onstop = async () => {
+                const blob = new Blob(recordedVideoChunks, { type: 'video/mp4' });
+                setTimeout(async () => {
+                    const thumbnail = await captureThumbnail();
+                    saveRecording(blob, thumbnail, 'face');
+                }, 2000);
+            };
 
             videoRecorder.start();
             isRecordingVideo = true;
@@ -236,8 +164,134 @@ let startRecording = async () => {
     }
 }
 
-// Record button click handler
+function stopRecording() {
+    recording = false;
+    recordBtn.textContent = 'Start Recording';
+    recordBtn.classList.remove('recording');
+    stopTimer();
+
+    if (videoRecorder && videoRecorder.state !== 'inactive') {
+        videoRecorder.stop();
+    }
+
+    // Stop all streams
+    stopMediaTracks();
+    
+    // Stop rendering
+    stopRendering();
+
+    // Clear face mesh
+    if (faceMesh) {
+        faceMesh.close();
+        faceMesh = null;
+    }
+
+    // Clear canvas
+    faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
+}
+
+function stopMediaTracks() {
+    const streams = [screenStream, micStream, webcamStream, combinedStream];
+    streams.forEach(stream => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    });
+    screenStream = null;
+    micStream = null;
+    webcamStream = null;
+    combinedStream = null;
+}
+
+// Render Function with setInterval
+function startRendering() {
+    if (recordingInterval) return;
+
+    recordingInterval = setInterval(() => {
+        if (screenVideo && faceMeshCanvas) {
+            // Draw the screen video first
+            faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
+            faceMeshCtx.drawImage(screenVideo, 0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
+            
+            // Draw face mesh over the screen video
+            drawResults(latest_results);
+        }
+    }, 20);  //  50FPS
+}
+
+function stopRendering() {
+    if (recordingInterval) {
+        clearInterval(recordingInterval);
+        recordingInterval = null;
+    }
+}
+
+// Function to Capture Thumbnail
+async function captureThumbnail() {
+    try {
+        const thumbnailCanvas = document.createElement('canvas');
+        const THUMBNAIL_WIDTH = 320;
+        const THUMBNAIL_HEIGHT = 180;
+
+        thumbnailCanvas.width = THUMBNAIL_WIDTH;
+        thumbnailCanvas.height = THUMBNAIL_HEIGHT;
+        const thumbnailCtx = thumbnailCanvas.getContext('2d');
+
+        if (screenVideo && screenVideo.readyState === 4) {
+            try {
+                thumbnailCtx.drawImage(
+                    screenVideo, 
+                    0, 0, screenVideo.videoWidth, screenVideo.videoHeight,
+                    0, 0, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT
+                );
+            } catch (error) {
+                console.warn('Could not draw screen content:', error);
+            }
+        }
+
+        return new Promise((resolve, reject) => {
+            thumbnailCanvas.toBlob(
+                (blob) => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error('Failed to create thumbnail blob'));
+                    }
+                },
+                'image/jpeg',
+                0.85
+            );
+        });
+    } catch (error) {
+        console.error('Error in captureThumbnail:', error);
+        return null;
+    }
+}
+
+function onResults(results) {
+    latest_results = results;
+}
+
+
+
+// Timer Functions
+function startTimer() {
+    let seconds = 0;
+    timerInterval = setInterval(() => {
+        seconds++;
+        timerElement.textContent = `Recording: ${seconds} sec`;
+    }, 1000);
+}
+
+function stopTimer() {
+    clearInterval(timerInterval);
+    timerElement.textContent = '';
+}
+
+// Record Button Click Handler
 recordBtn.addEventListener('click', startRecording);
+
+
 
 function stopRecording() {
     recording = false;
@@ -293,7 +347,7 @@ function drawResults(results) {
     if (results.multiFaceLandmarks) {
         for (const landmarks of results.multiFaceLandmarks) {
             const scaledLandmarks = landmarks.map(landmark => ({
-                x: landmark.x * 0.33 + 0,
+                x: landmark.x * 0.33 + 0.7,
                 y: landmark.y * 0.33 + 0.7,
                 z: landmark.z * 0.33
             }));
