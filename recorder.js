@@ -54,7 +54,8 @@ request.onsuccess = (event) => {
 const processFrames = async () => {
     const webcamVideo = document.getElementById('webcam');
     if (webcamVideo.readyState === 4 && recording) {
-        await faceMesh.send({ image: webcamVideo });
+        if (faceMesh)
+            await faceMesh.send({ image: webcamVideo });
     }
     requestIdleCallback(processFrames, { timeout: 50 });
 };
@@ -218,7 +219,7 @@ function startRendering() {
             // Draw face mesh over the screen video
             drawResults(latest_results);
         }
-    }, 20);  //  100FPS
+    }, 20);  //  50 FPS
 }
 
 function stopRendering() {
