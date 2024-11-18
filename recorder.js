@@ -219,7 +219,7 @@ function startRendering() {
             // Draw face mesh over the screen video
             drawResults(latest_results);
         }
-    }, 20);  //  50 FPS
+    }, 20);  //  50FPS
 }
 
 function stopRendering() {
