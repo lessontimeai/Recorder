@@ -19,6 +19,36 @@ request.onerror = (event) => {
     console.error('IndexedDB error:', event.target.errorCode);
 };
 
+// Create Web Worker for timing
+const workerCode = `
+    let interval;
+    self.onmessage = function(e) {
+        if (e.data === 'start') {
+            interval = setInterval(() => {
+                self.postMessage('tick');
+            }, 16); // ~60fps
+        } else if (e.data === 'stop') {
+            clearInterval(interval);
+        }
+    };
+`;
+
+const blob = new Blob([workerCode], { type: 'application/javascript' });
+const worker = new Worker(URL.createObjectURL(blob));
+
+worker.onmessage = function() {
+    renderFaceCanvas();
+};
+
+worker.postMessage('start');
+
+
+window.addEventListener('beforeunload', () => {
+    worker.postMessage('stop');
+    worker.terminate();
+});
+
+
 request.onupgradeneeded = (event) => {
     db = event.target.result;
     if (!db.objectStoreNames.contains('recordings')) {
@@ -449,21 +479,21 @@ function drawResults(results) {
     if (results.multiFaceLandmarks) {
         for (const landmarks of results.multiFaceLandmarks) {
             const scaledLandmarks = landmarks.map(landmark => ({
-                x: landmark.x * 0.25 + 0.75,
-                y: landmark.y * 0.25 + 0.75,
-                z: landmark.z * 0.25
+                x: landmark.x * 0.5 + 0.5,
+                y: landmark.y * 0.5 + 0.5,
+                z: landmark.z * 0.5
             }));
 
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_TESSELATION,
-                { color: '#C0C0C070', lineWidth: 0.5 });
+                { color: '#C0C0C070', lineWidth: 1 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_RIGHT_EYE, 
-                { color: '#30FF30', lineWidth: 0.5 });
+                { color: '#30FF30', lineWidth: 1 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_LEFT_EYE, 
-                { color: '#30FF30', lineWidth: 0.5 });
+                { color: '#30FF30', lineWidth: 1 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_FACE_OVAL, 
-                { color: '#E0E0E0', lineWidth: 0.5 });
+                { color: '#E0E0E0', lineWidth: 1 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_LIPS, 
-                { color: '#E0E0E0', lineWidth: 0.5 });
+                { color: '#E0E0E0', lineWidth: 1 });
         }
     }
 
@@ -480,11 +510,8 @@ function renderFaceCanvas() {
     if (latest_results) {
         drawResults(latest_results);
     }
-
-    // Request the next animation frame
-    requestAnimationFrame(renderFaceCanvas);
 }
-requestAnimationFrame(renderFaceCanvas);
+
 
 
 let latest_results = null;

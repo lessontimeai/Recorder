@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="Layer_1"
+   data-name="Layer 1"
+   viewBox="0 0 29.12721 26.873664"
+   version="1.1"
+   sodipodi:docname="recorder.svg"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   inkscape:export-filename="/home/halidziya/Downloads/LessonTimeAI.png"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   width="28.154463"
+   height="27.043398"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview55"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     showgrid="false"
+     inkscape:zoom="3.9798922"
+     inkscape:cx="126.76223"
+     inkscape:cy="8.2916819"
+     inkscape:window-width="1553"
+     inkscape:window-height="748"
+     inkscape:window-x="352"
+     inkscape:window-y="53"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="Layer_1" />
+  <defs
+     id="defs4">
+    <style
+       id="style2">.cls-1{fill:#d11;}.cls-2{fill:#004aaa;}</style>
+  </defs>
+  <g
+     id="g334-3"
+     transform="matrix(0.33797488,0,0,0.33797488,-0.00337975,-29.99033)"
+     inkscape:export-filename="/home/halidziya/Downloads/text28435.png"
+     inkscape:export-xdpi="300"
+     inkscape:export-ydpi="300">
+    <path
+       class="cls-1"
+       d="m 246.1,582.77 v -27.12 l -28,-5.39 c -4.72,8.17 -9.39,16.26 -14.07,24.38 l 18.72,21.61 z"
+       transform="translate(-203.81,-455.45)"
+       id="path30-6" />
+    <path
+       class="cls-1"
+       d="m 247.69,582.75 23.41,13.51 18.73,-21.62 -14.08,-24.38 -28.06,5.4 z"
+       transform="translate(-203.81,-455.45)"
+       id="path32-7" />
+    <path
+       class="cls-1"
+       d="m 246.91,584 -23.45,13.55 9.35,27 H 261 q 4.67,-13.5 9.34,-27 z"
+       transform="translate(-203.81,-455.45)"
+       id="path34-5" />
+    <path
+       class="cls-1"
+       d="m 290,577.75 v -1 l -0.48,0.53 -17.25,19.91 a 3,3 0 0 0 -0.55,1 q -4.26,12.33 -8.53,24.64 c -0.07,0.21 -0.27,0.42 -0.09,0.7 l 0.65,-0.35 c 3.72,-2.15 7.43,-4.3 11.16,-6.43 a 2.78,2.78 0 0 0 1.07,-1.08 q 6.81,-11.84 13.66,-23.66 a 2.52,2.52 0 0 0 0.36,-1.39 c 0,-4.28 0,-8.57 0,-12.87 z"
+       transform="translate(-203.81,-455.45)"
+       id="path36-3" />
+    <path
+       class="cls-1"
+       d="m 222.05,598.1 a 3.27,3.27 0 0 0 -0.65,-1 l -15.25,-17.61 -2.27,-2.61 a 4.06,4.06 0 0 0 -0.06,0.54 c 0,4.51 0,9 0,13.54 a 2.12,2.12 0 0 0 0.34,1.07 q 6.87,11.89 13.73,23.8 a 2.32,2.32 0 0 0 0.91,0.9 c 3.23,1.85 6.44,3.71 9.66,5.57 l 2.39,1.38 c -0.09,-0.33 -0.13,-0.5 -0.19,-0.68 q -4.31,-12.47 -8.61,-24.9 z"
+       transform="translate(-203.81,-455.45)"
+       id="path38-5" />
+    <path
+       class="cls-1"
+       d="m 220.5,549.18 25.84,5 a 2.65,2.65 0 0 0 1,0 l 21.96,-4.18 4.62,-0.91 c -0.34,-0.23 -0.54,-0.36 -0.75,-0.48 q -5.57,-3.21 -11.14,-6.44 a 2.83,2.83 0 0 0 -1.47,-0.4 h -27.33 a 2.65,2.65 0 0 0 -1.39,0.36 c -3.73,2.17 -7.48,4.32 -11.22,6.49 -0.2,0.11 -0.45,0.17 -0.56,0.41 0.1,0.14 0.28,0.12 0.44,0.15 z"
+       transform="translate(-203.81,-455.45)"
+       id="path40-6" />
+  </g>
+</svg>

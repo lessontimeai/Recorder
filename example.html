@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Canvas Recording</title>
+    <style>
+        canvas { border: 1px solid black; }
+        #controls { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <canvas id="animationCanvas" width="400" height="400"></canvas>
+    <div id="controls">
+        <button id="startBtn">Start Recording</button>
+        <button id="stopBtn" disabled>Stop Recording</button>
+    </div>
+    <video id="recordingPlayback" controls></video>
+
+    <script>
+        const canvas = document.getElementById('animationCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const video = document.getElementById('recordingPlayback');
+
+        let mediaRecorder;
+        let recordedChunks = [];
+        let angle = 0;
+
+        // Create Web Worker for timing
+        const workerCode = `
+            let interval;
+            self.onmessage = function(e) {
+                if (e.data === 'start') {
+                    interval = setInterval(() => {
+                        self.postMessage('tick');
+                    }, 16); // ~60fps
+                } else if (e.data === 'stop') {
+                    clearInterval(interval);
+                }
+            };
+        `;
+
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const worker = new Worker(URL.createObjectURL(blob));
+
+        worker.onmessage = function() {
+            angle += 0.02;
+            draw();
+        };
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(canvas.width/2, canvas.height/2);
+            ctx.rotate(angle);
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(-50, -50, 100, 100);
+            ctx.restore();
+        }
+
+        // Start animation immediately
+        worker.postMessage('start');
+
+        startBtn.addEventListener('click', () => {
+            recordedChunks = [];
+            const stream = canvas.captureStream(60);
+            
+            mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'video/webm;codecs=vp9',
+                videoBitsPerSecond: 2500000
+            });
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                video.src = URL.createObjectURL(blob);
+            };
+
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            mediaRecorder.start();
+        });
+
+        stopBtn.addEventListener('click', () => {
+            mediaRecorder.stop();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            worker.postMessage('stop');
+            worker.terminate();
+        });
+    </script>
+</body>
+</html>
