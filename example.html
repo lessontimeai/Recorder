@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Canvas Recording</title>
+    <title>Face Mesh Recording</title>
     <style>
         canvas { border: 1px solid black; }
         #controls { margin: 10px 0; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 </head>
 <body>
-    <canvas id="animationCanvas" width="400" height="400"></canvas>
+    <video id="webcam" autoplay muted playsinline style="display: none;"></video>
+    <canvas id="animationCanvas" width="1024" height="768"></canvas>
     <div id="controls">
         <button id="startBtn">Start Recording</button>
         <button id="stopBtn" disabled>Stop Recording</button>
@@ -16,54 +20,143 @@
     <video id="recordingPlayback" controls></video>
 
     <script>
-        const canvas = document.getElementById('animationCanvas');
-        const ctx = canvas.getContext('2d');
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const video = document.getElementById('recordingPlayback');
-
-        let mediaRecorder;
-        let recordedChunks = [];
+        let face_background_process = false;
+        let faceMesh;
+        let faceMeshCanvas = document.getElementById('animationCanvas');
+        let faceMeshCtx = faceMeshCanvas.getContext('2d');
+        let camera = null;
+        let latest_results = null;
         let angle = 0;
-
-        // Create Web Worker for timing
+        
         const workerCode = `
             let interval;
             self.onmessage = function(e) {
                 if (e.data === 'start') {
                     interval = setInterval(() => {
                         self.postMessage('tick');
-                    }, 16); // ~60fps
+                    }, 16);
                 } else if (e.data === 'stop') {
                     clearInterval(interval);
                 }
             };
         `;
-
         const blob = new Blob([workerCode], { type: 'application/javascript' });
         const worker = new Worker(URL.createObjectURL(blob));
 
         worker.onmessage = function() {
             angle += 0.02;
-            draw();
+            const webcamVideo = document.getElementById('webcam');
+            renderFaceCanvas();
+            renderRotatingSquare();
+            if (face_background_process)
+                faceMesh.send({ image: webcamVideo });
         };
 
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.translate(canvas.width/2, canvas.height/2);
-            ctx.rotate(angle);
-            ctx.fillStyle = 'blue';
-            ctx.fillRect(-50, -50, 100, 100);
-            ctx.restore();
+        function renderRotatingSquare() {
+            const centerX = faceMeshCanvas.width / 2;
+            const centerY = faceMeshCanvas.height / 2;
+            const size = 200;
+
+            faceMeshCtx.save();
+            faceMeshCtx.translate(centerX, centerY);
+            faceMeshCtx.rotate(angle);
+            faceMeshCtx.fillStyle = 'rgba(0, 100, 255, 0.5)';
+            faceMeshCtx.fillRect(-size/2, -size/2, size, size);
+            faceMeshCtx.restore();
         }
 
-        // Start animation immediately
-        worker.postMessage('start');
+        async function initFaceMesh() {
+            return new Promise((resolve, reject) => {
+                try {
+                    faceMesh = new FaceMesh({
+                        locateFile: (file) => {
+                            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+                        }
+                    });
+
+                    faceMesh.setOptions({
+                        maxNumFaces: 3,
+                        refineLandmarks: true,
+                        minDetectionConfidence: 0.5,
+                        minTrackingConfidence: 0.5
+                    });
+
+                    faceMesh.onResults(onResults);
+
+                    const webcamVideo = document.getElementById('webcam');
+                    camera = new Camera(webcamVideo, {
+                        onFrame: async () => {
+                            if (face_background_process==false)
+                                await faceMesh.send({ image: webcamVideo });
+                            face_background_process = true;
+                        },
+                        width: 640,
+                        height: 480
+                    });
+
+                    camera.start();
+                    worker.postMessage('start');
+                    resolve();
+                } catch (error) {
+                    console.error('Error initializing Face Mesh:', error);
+                    reject(error);
+                }
+            });
+        }
+
+        function onResults(results) {
+            latest_results = results;
+            drawResults(results);
+        }
+
+        function renderFaceCanvas() {
+            if (latest_results) {
+              drawResults(latest_results);
+            }
+        }
+
+        function drawResults(results) {
+            faceMeshCtx.save();
+            faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
+            faceMeshCtx.fillStyle = 'black';
+            faceMeshCtx.fillRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
+
+            if (!results || !results.multiFaceLandmarks) {
+                faceMeshCtx.restore();
+                return;
+            }
+
+            for (const landmarks of results.multiFaceLandmarks) {
+                const scaledLandmarks = landmarks.map(landmark => ({
+                    x: landmark.x * 0.5 + 0.5,
+                    y: landmark.y * 0.5 + 0.5,
+                    z: landmark.z * 0.5
+                }));
+
+                drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_TESSELATION,
+                    { color: '#C0C0C070', lineWidth: 1 });
+                drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_RIGHT_EYE,
+                    { color: '#30FF30', lineWidth: 1 });
+                drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_LEFT_EYE,
+                    { color: '#30FF30', lineWidth: 1 });
+                drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_FACE_OVAL,
+                    { color: '#E0E0E0', lineWidth: 1 });
+                drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_LIPS,
+                    { color: '#E0E0E0', lineWidth: 1 });
+            }
+
+            faceMeshCtx.restore();
+        }
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const video = document.getElementById('recordingPlayback');
+        let mediaRecorder;
+        let recordedChunks = [];
 
         startBtn.addEventListener('click', () => {
             recordedChunks = [];
-            const stream = canvas.captureStream(60);
+            const stream = faceMeshCanvas.captureStream(60);
             
             mediaRecorder = new MediaRecorder(stream, {
                 mimeType: 'video/webm;codecs=vp9',
@@ -90,12 +183,21 @@
             mediaRecorder.stop();
             startBtn.disabled = false;
             stopBtn.disabled = true;
+            face_background_process = false;
         });
 
-        // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
             worker.postMessage('stop');
             worker.terminate();
+        });
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await initFaceMesh();
+            } catch (error) {
+                console.error('Failed to initialize Face Mesh:', error);
+                alert('Failed to initialize Face Mesh. Please check webcam permissions.');
+            }
         });
     </script>
 </body>

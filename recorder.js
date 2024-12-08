@@ -26,7 +26,7 @@ const workerCode = `
         if (e.data === 'start') {
             interval = setInterval(() => {
                 self.postMessage('tick');
-            }, 16); // ~60fps
+            }, 33); // ~30fps
         } else if (e.data === 'stop') {
             clearInterval(interval);
         }
@@ -38,6 +38,11 @@ const worker = new Worker(URL.createObjectURL(blob));
 
 worker.onmessage = function() {
     renderFaceCanvas();
+    if (face_background_process)
+    {
+        const webcamVideo = document.getElementById('webcam');
+        faceMesh.send({ image: webcamVideo });
+    }
 };
 
 worker.postMessage('start');
@@ -92,6 +97,7 @@ let faceMeshCtx = faceMeshCanvas.getContext('2d');
 let camera = null;
 faceMeshCanvas.width = 3840;
 faceMeshCanvas.height = 2160;
+let face_background_process = false;
 
 // Initialize Face Mesh on Page Load
 window.addEventListener('DOMContentLoaded', async () => {
@@ -454,7 +460,9 @@ async function initFaceMesh() {
 
             camera = new Camera(webcamVideo, {
                 onFrame: async () => {
-                    await faceMesh.send({ image: webcamVideo });
+                    if (face_background_process==false)
+                        await faceMesh.send({ image: webcamVideo });
+                    face_background_process = true;
                 },
                 width: 640,
                 height: 480
@@ -562,4 +570,5 @@ function stopFaceMesh() {
     }
     // Clear canvas
     faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
+    face_background_process = false;
 }
