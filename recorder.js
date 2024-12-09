@@ -1,3 +1,4 @@
+// Variables
 let recording = false;
 let mediaRecorder;
 let recordedChunks = [];
@@ -26,6 +27,11 @@ let latest_results = null;
 let recordingInterval = null;
 let face_background_process = false;
 
+// FaceMesh constants assumed available
+// (Ensure these imports or definitions in actual code environment)
+// import { FACEMESH_TESSELATION, FACEMESH_RIGHT_EYE, FACEMESH_LEFT_EYE, 
+// FACEMESH_FACE_OVAL, FACEMESH_LIPS } from '@mediapipe/face_mesh';
+// import { drawConnectors } from '@mediapipe/drawing_utils';
 
 // Create Web Worker for timing
 const workerCode = `
@@ -44,8 +50,6 @@ const workerCode = `
 const blob = new Blob([workerCode], { type: 'application/javascript' });
 const worker = new Worker(URL.createObjectURL(blob));
 
-let messageCounter = 0;
-
 worker.onmessage = async function() {
     renderVideoToCanvas();
     face_detect();
@@ -53,15 +57,12 @@ worker.onmessage = async function() {
 
 worker.postMessage('start');
 
-
 window.addEventListener('beforeunload', () => {
     worker.postMessage('stop');
     worker.terminate();
 });
 
-
-
-// Initialize IndexedDB
+// IndexedDB Initialization
 let db;
 const request = indexedDB.open('ScreenRecorderDB', 4);
 
@@ -86,7 +87,7 @@ request.onsuccess = (event) => {
     loadRecordings();
 };
 
-// Start processing frames
+// Face detection
 const face_detect = async () => {
     const webcamVideo = document.getElementById('webcam');
     if (webcamVideo.readyState === 4 && recording) {
@@ -113,19 +114,18 @@ async function initFaceMesh() {
 
         faceMesh.onResults(onResults);
 
-        // Get webcam stream
+
         webcamStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                width: 640,
-                height: 480
-            } 
+            video: { width: 640, height: 480 } 
         });
 
+        
         const webcamVideo = document.getElementById('webcam');
+
+
+        
         webcamVideo.srcObject = webcamStream;
         await webcamVideo.play();
-
-
 
         return true;
     } catch (error) {
@@ -134,7 +134,7 @@ async function initFaceMesh() {
     }
 }
 
-// Start and Stop Recording Functions
+// Start/Stop Recording
 let startRecording = async () => {
     if (!recording) {
         try {
@@ -144,36 +144,30 @@ let startRecording = async () => {
             startTimer();
             downloadBtn.style.display = 'none';
 
-            // Get screen stream first
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             screenVideo = document.getElementById('screenvideo');
             screenVideo.srcObject = screenStream;
             await screenVideo.play();
 
-            // Initialize face mesh after screen share
             const faceMeshInitialized = await initFaceMesh();
+            
             if (!faceMeshInitialized) {
                 throw new Error('Failed to initialize face mesh');
             }
 
-            // Set up canvas
             faceMeshCanvas.width = 4096;
             faceMeshCanvas.height = 2160;
             
-            // Get microphone stream
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-            // Start rendering with setInterval
             startRendering();
 
-            // Combine streams
             const canvasStream = faceMeshCanvas.captureStream(60);
             combinedStream = new MediaStream([
                 ...canvasStream.getTracks(),
                 ...micStream.getTracks()
             ]);
 
-            // Initialize video recorder
             recordedVideoChunks = [];
             videoRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4' });
             
@@ -212,19 +206,14 @@ function stopRecording() {
         videoRecorder.stop();
     }
 
-    // Stop all streams
     stopMediaTracks();
-    
-    // Stop rendering
     stopRendering();
 
-    // Clear face mesh
     if (faceMesh) {
         faceMesh.close();
         faceMesh = null;
     }
 
-    // Clear canvas
     faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
     face_background_process = false;
 }
@@ -242,20 +231,17 @@ function stopMediaTracks() {
     combinedStream = null;
 }
 
-// Render Function with setInterval
+// Rendering
 function startRendering() {
     if (recordingInterval) return;
 
     recordingInterval = setInterval(() => {
         if (screenVideo && faceMeshCanvas) {
-            // Draw the screen video first
             faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
             faceMeshCtx.drawImage(screenVideo, 0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
-            
-            // Draw face mesh over the screen video
             drawResults(latest_results);
         }
-    }, 16.666);  //  60FPS
+    }, 16.666);  // ~60FPS
 }
 
 function stopRendering() {
@@ -265,7 +251,6 @@ function stopRendering() {
     }
 }
 
-// Function to Capture Thumbnail
 async function captureThumbnail() {
     try {
         const thumbnailCanvas = document.createElement('canvas');
@@ -311,78 +296,8 @@ function onResults(results) {
     latest_results = results;
 }
 
-
-
-// Timer Functions
-function startTimer() {
-    let seconds = 0;
-    timerInterval = setInterval(() => {
-        seconds++;
-        timerElement.textContent = `Recording: ${seconds} sec`;
-    }, 1000);
-}
-
-function stopTimer() {
-    clearInterval(timerInterval);
-    timerElement.textContent = '';
-}
-
-// Record Button Click Handler
-recordBtn.addEventListener('click', startRecording);
-
-
-
-function stopRecording() {
-    recording = false;
-    recordBtn.textContent = 'Start Recording';
-    recordBtn.classList.remove('recording');
-    stopTimer();
-
-    if (videoRecorder && videoRecorder.state !== 'inactive') {
-        videoRecorder.stop();
-    }
-
-    // Stop all streams
-    stopMediaTracks();
-    
-    // Clear face mesh
-    if (faceMesh) {
-        faceMesh.close();
-        faceMesh = null;
-    }
-
-    // Clear canvas
-    faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
-}
-
-function stopMediaTracks() {
-    const streams = [screenStream, micStream, webcamStream, combinedStream];
-    streams.forEach(stream => {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
-    });
-    screenStream = null;
-    micStream = null;
-    webcamStream = null;
-    combinedStream = null;
-}
-
-function renderVideoToCanvas() {
-    if (!recording) return;
-    if (screenVideo)
-    faceMeshCtx.drawImage(screenVideo, 0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
-    drawResults(latest_results);
-    requestAnimationFrame(renderVideoToCanvas);
-}
-
-function onResults(results) {
-    latest_results = results;
-}
-
 function drawResults(results) {
     if (!results) return;
-    
     if (results.multiFaceLandmarks) {
         for (const landmarks of results.multiFaceLandmarks) {
             const scaledLandmarks = landmarks.map(landmark => ({
@@ -405,7 +320,7 @@ function drawResults(results) {
     }
 }
 
-// Timer functions
+// Timer Functions
 function startTimer() {
     let seconds = 0;
     timerInterval = setInterval(() => {
@@ -419,6 +334,18 @@ function stopTimer() {
     timerElement.textContent = '';
 }
 
+// Record Button Click Handler
+recordBtn.addEventListener('click', startRecording);
+
+function renderVideoToCanvas() {
+    if (!recording) return;
+    if (screenVideo) {
+        faceMeshCtx.drawImage(screenVideo, 0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
+    }
+    drawResults(latest_results);
+    requestAnimationFrame(renderVideoToCanvas);
+}
+
 async function loadRecordings() {
     const transaction = db.transaction(['recordings', 'thumbnails'], 'readonly');
     const recordingsStore = transaction.objectStore('recordings');
@@ -427,7 +354,6 @@ async function loadRecordings() {
     const recordings = [];
     const thumbnails = new Map();
 
-    // Load recordings
     const recordingsCursor = recordingsStore.openCursor();
     await new Promise((resolve, reject) => {
         recordingsCursor.onsuccess = (event) => {
@@ -442,7 +368,6 @@ async function loadRecordings() {
         recordingsCursor.onerror = (event) => reject(event.target.error);
     });
 
-    // Load thumbnails
     const thumbnailsCursor = thumbnailsStore.openCursor();
     await new Promise((resolve, reject) => {
         thumbnailsCursor.onsuccess = (event) => {
@@ -457,14 +382,13 @@ async function loadRecordings() {
         thumbnailsCursor.onerror = (event) => reject(event.target.error);
     });
 
-    // Clear existing list
     const recordingsList = document.getElementById('recordings-list');
     recordingsList.innerHTML = '';
 
-    // Append recordings
-    recordings.sort((a, b) => b.timestamp - a.timestamp); // Sort by latest first
+    recordings.sort((a, b) => b.timestamp - a.timestamp);
     recordings.forEach(recording => {
-        const thumbnailUrl = thumbnails.get(recording.id) || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAMAAADzP4xAAAAA1BMVEX///+nxBvIAAAAK0lEQVR4nO3BMQEAAADCoPVPbQ0PoAAAAAAAAAAAAAAAAAAAAPwG8tgAAAXT5DUsAAAAASUVORK5CYII='; // Placeholder image
+        const thumbnailUrl = thumbnails.get(recording.id) || 
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAMAAADzP4xAAAAA1BMVEX///+nxBvIAAAAK0lEQVR4nO3BMQEAAADCoPVPbQ0PoAAAAAAAAAAAAAAAAAAAAPwG8tgAAAXT5DUsAAAAASUVORK5CYII=';
         appendRecordingItem(recording.id, recording, thumbnailUrl);
     });
 }
@@ -488,7 +412,6 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'recording-actions';
 
-    // Play link
     const playLink = document.createElement('a');
     playLink.textContent = 'Play';
     playLink.href = '#';
@@ -502,7 +425,6 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
     });
     actionsDiv.appendChild(playLink);
 
-    // Download link
     const downloadLink = document.createElement('a');
     downloadLink.textContent = 'Download';
     downloadLink.href = '#';
@@ -518,7 +440,6 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
     });
     actionsDiv.appendChild(downloadLink);
 
-    // Delete link
     const deleteLink = document.createElement('a');
     deleteLink.textContent = 'Delete';
     deleteLink.href = '#';
@@ -534,7 +455,6 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
     listItem.appendChild(actionsDiv);
     document.getElementById('recordings-list').appendChild(listItem);
 }
-
 
 function saveRecording(blob, thumbnail, type) {
     const transaction = db.transaction(['recordings', 'thumbnails'], 'readwrite');
@@ -554,9 +474,8 @@ function saveRecording(blob, thumbnail, type) {
     recordingRequest.onsuccess = () => {
         console.log('Recording saved:', recordingId);
         if (thumbnail) {
-            const thumbnailId = recordingId;
             const thumbnailData = {
-                id: thumbnailId,
+                id: recordingId,
                 recordingId: recordingId,
                 thumbnail: thumbnail
             };
@@ -570,7 +489,6 @@ function saveRecording(blob, thumbnail, type) {
     };
 }
 
-
 function deleteRecording(recordingId) {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(['recordings', 'thumbnails'], 'readwrite');
@@ -582,7 +500,6 @@ function deleteRecording(recordingId) {
 
         deleteRecordingRequest.onsuccess = () => {
             console.log('Recording deleted:', recordingId);
-            // Delete thumbnail
             deleteThumbnailRequest.onsuccess = (event) => {
                 const cursor = event.target.result;
                 if (cursor) {
@@ -606,8 +523,6 @@ function deleteRecording(recordingId) {
     });
 }
 
-
-// Close video player function
 function closeVideoPlayer(event) {
     const videoPlayer = document.getElementById('videoplayer');
     const playerContainer = document.getElementById('playercontainer');
