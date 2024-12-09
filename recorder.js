@@ -52,7 +52,8 @@ const worker = new Worker(URL.createObjectURL(blob));
 
 worker.onmessage = async function() {
     renderVideoToCanvas();
-    face_detect();
+    if (face_background_process)
+        face_detect();
 };
 
 worker.postMessage('start');
@@ -177,6 +178,9 @@ let startRecording = async () => {
                 }
             };
 
+            setTimeout (()=> {
+                face_background_process = true;
+            }, 1000);
             videoRecorder.onstop = async () => {
                 const blob = new Blob(recordedVideoChunks, { type: 'video/mp4' });
                 setTimeout(async () => {
@@ -301,21 +305,21 @@ function drawResults(results) {
     if (results.multiFaceLandmarks) {
         for (const landmarks of results.multiFaceLandmarks) {
             const scaledLandmarks = landmarks.map(landmark => ({
-                x: landmark.x * 0.25 + 0.75,
-                y: landmark.y * 0.25 + 0.75,
-                z: landmark.z * 0.25
+                x: landmark.x * 0.2 + 0.8,
+                y: landmark.y * 0.2 + 0.8,
+                z: landmark.z * 0.2
             }));
 
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_TESSELATION,
-                { color: '#C0C0C070', lineWidth: 0.5 });
+                { color: '#C0C0C0A0', lineWidth: 1 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_RIGHT_EYE, 
-                { color: '#30FF30', lineWidth: 0.5 });
+                { color: '#30FF30', lineWidth: 1 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_LEFT_EYE, 
-                { color: '#30FF30', lineWidth: 0.5 });
+                { color: '#30FF30', lineWidth: 1 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_FACE_OVAL, 
-                { color: '#E0E0E0', lineWidth: 0.5 });
+                { color: '#E0E0E0', lineWidth: 1 });
             drawConnectors(faceMeshCtx, scaledLandmarks, FACEMESH_LIPS, 
-                { color: '#E0E0E0', lineWidth: 0.5 });
+                { color: '#E0E0E0', lineWidth: 1 });
         }
     }
 }
@@ -343,7 +347,6 @@ function renderVideoToCanvas() {
         faceMeshCtx.drawImage(screenVideo, 0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
     }
     drawResults(latest_results);
-    requestAnimationFrame(renderVideoToCanvas);
 }
 
 async function loadRecordings() {
