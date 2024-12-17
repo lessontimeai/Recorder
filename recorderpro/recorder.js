@@ -27,11 +27,6 @@ let latest_results = null;
 let recordingInterval = null;
 let face_background_process = false;
 
-// FaceMesh constants assumed available
-// (Ensure these imports or definitions in actual code environment)
-// import { FACEMESH_TESSELATION, FACEMESH_RIGHT_EYE, FACEMESH_LEFT_EYE, 
-// FACEMESH_FACE_OVAL, FACEMESH_LIPS } from '@mediapipe/face_mesh';
-// import { drawConnectors } from '@mediapipe/drawing_utils';
 
 // Create Web Worker for timing
 const workerCode = `
@@ -40,7 +35,7 @@ const workerCode = `
         if (e.data === 'start') {
             interval = setInterval(() => {
                 self.postMessage('tick');
-            }, 100); // ~100 fps
+            }, 16.66); // ~60 fps
         } else if (e.data === 'stop') {
             clearInterval(interval);
         }
@@ -49,14 +44,18 @@ const workerCode = `
 
 const blob = new Blob([workerCode], { type: 'application/javascript' });
 const worker = new Worker(URL.createObjectURL(blob));
-
+let face_counter = 0
 worker.onmessage = async function() {
     renderVideoToCanvas();
-    if (face_background_process)
-        face_detect();
+    if (face_background_process){
+        if (face_counter%8==0){
+            face_detect();
+            face_counter=0;
+        }
+        face_counter+=1;
+    }
 };
 
-worker.postMessage('start');
 
 window.addEventListener('beforeunload', () => {
     worker.postMessage('stop');
@@ -144,6 +143,7 @@ let startRecording = async () => {
             recordBtn.classList.add('recording');
             startTimer();
             downloadBtn.style.display = 'none';
+            worker.postMessage('start');
 
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             screenVideo = document.getElementById('screenvideo');
@@ -156,8 +156,8 @@ let startRecording = async () => {
                 throw new Error('Failed to initialize face mesh');
             }
 
-            faceMeshCanvas.width = 4096;
-            faceMeshCanvas.height = 2160;
+            faceMeshCanvas.width = 1920;
+            faceMeshCanvas.height = 1080;
             
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -183,10 +183,9 @@ let startRecording = async () => {
             }, 1000);
             videoRecorder.onstop = async () => {
                 const blob = new Blob(recordedVideoChunks, { type: 'video/mp4' });
-                setTimeout(async () => {
-                    const thumbnail = await captureThumbnail();
-                    saveRecording(blob, thumbnail, 'face');
-                }, 2000);
+                const thumbnail = await captureThumbnail();
+                saveRecording(blob, thumbnail, 'face');
+                setTimeout(() => { faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height)}, 1000);
             };
 
             videoRecorder.start();
@@ -204,6 +203,7 @@ function stopRecording() {
     recording = false;
     recordBtn.textContent = 'Start Recording';
     recordBtn.classList.remove('recording');
+    worker.postMessage('stop');
     stopTimer();
 
     if (videoRecorder && videoRecorder.state !== 'inactive') {
@@ -217,8 +217,6 @@ function stopRecording() {
         faceMesh.close();
         faceMesh = null;
     }
-
-    faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
     face_background_process = false;
 }
 
@@ -257,38 +255,24 @@ function stopRendering() {
 
 async function captureThumbnail() {
     try {
-        const thumbnailCanvas = document.createElement('canvas');
-        const THUMBNAIL_WIDTH = 320;
-        const THUMBNAIL_HEIGHT = 180;
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const thumbnailCanvas = document.createElement('canvas');
+                thumbnailCanvas.width = 320;
+                thumbnailCanvas.height = 180;
+                const thumbnailCtx = thumbnailCanvas.getContext('2d');
 
-        thumbnailCanvas.width = THUMBNAIL_WIDTH;
-        thumbnailCanvas.height = THUMBNAIL_HEIGHT;
-        const thumbnailCtx = thumbnailCanvas.getContext('2d');
-
-        if (screenVideo && screenVideo.readyState === 4) {
-            try {
+                // Scale and draw the faceMeshCanvas content
                 thumbnailCtx.drawImage(
-                    screenVideo, 
-                    0, 0, screenVideo.videoWidth, screenVideo.videoHeight,
-                    0, 0, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT
+                    faceMeshCanvas, 
+                    0, 0, faceMeshCanvas.width, faceMeshCanvas.height,
+                    0, 0, thumbnailCanvas.width, thumbnailCanvas.height
                 );
-            } catch (error) {
-                console.warn('Could not draw screen content:', error);
-            }
-        }
 
-        return new Promise((resolve, reject) => {
-            thumbnailCanvas.toBlob(
-                (blob) => {
-                    if (blob) {
-                        resolve(blob);
-                    } else {
-                        reject(new Error('Failed to create thumbnail blob'));
-                    }
-                },
-                'image/jpeg',
-                0.85
-            );
+                thumbnailCanvas.toBlob((thumbnailBlob) => {
+                    resolve(thumbnailBlob);
+                }, 'image/jpeg');
+            }, 2000);  // 2 second delay
         });
     } catch (error) {
         console.error('Error in captureThumbnail:', error);

@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Screen Recorder with Face Mesh</title>
-    <link rel="stylesheet" href="record.css">
+    <title>Screen Recorder</title>
+    <link rel="stylesheet" href="recorder.css">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <body>
@@ -26,19 +26,10 @@
             </div>
         </div>
 
-        <div id="face-mesh-container">
-            <canvas id="facepoints"></canvas>
-        </div>
     </div>
 
-    <!-- Hidden Video Element for Face Mesh Processing -->
-    <video id="webcam" autoplay muted playsinline style="display: none;"></video>
     <video id="screenvideo" autoplay muted playsinline style="display: none;"></video>
 
-    <!-- MediaPipe Face Mesh Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="recorder.js"> </script>
     <div id="playercontainer"  style="display: none;"> 
         <button id="playerclose" class="actionbutton" onclick="closeVideoPlayer()">Close</button>

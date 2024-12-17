@@ -436,9 +436,6 @@ async function initFaceMesh() {
 function onResults(results) {
     // Clear canvas
     faceMeshCtx.save();
-    faceMeshCtx.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
-    faceMeshCtx.fillStyle = 'black'; // Set the background color to black
-    faceMeshCtx.fillRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height); // Fill the canvas with black
 
 
     if (results.multiFaceLandmarks) {
