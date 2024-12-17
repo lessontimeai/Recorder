@@ -58,7 +58,6 @@ worker.onmessage = async function() {
 
 
 window.addEventListener('beforeunload', () => {
-    worker.postMessage('stop');
     worker.terminate();
 });
 
