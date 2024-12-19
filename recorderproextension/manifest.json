@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Recoder",
+  "name": "RecorderPro",
   "version": "1.0",
   "description": "Record Videos, Educate People, Pro Version allows capturing face mesh",
   "permissions": ["tabs"],
