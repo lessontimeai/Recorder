@@ -1,0 +1,48 @@
+# Screen Recorder License Agreement
+
+## 1. License Grant
+Subject to the terms of this Agreement, you are granted a non-exclusive, non-transferable license to use the Screen Recorder application ("Software") under one of the following conditions:
+
+### 1.1 Paid License
+- Payment of a one-time fee
+- Grants perpetual usage rights for the current version
+- Includes all basic features and functionalities
+
+### 1.2 Share License
+- Public sharing of the Software on one or more social media platforms
+- Must include the official hashtag #ScreenRecorderApp
+- Share must remain visible for at least 30 days
+- Share must include a genuine review or use case of the Software
+
+## 2. License Activation
+- Paid License: Activated immediately upon successful payment processing
+- Share License: Activated upon verification of social media share
+
+## 3. Restrictions
+You may not:
+- Modify, reverse engineer, or decompile the Software
+- Remove or alter any proprietary notices or marks
+- Transfer or sublicense the Software to any third party
+- Use the Software for illegal or unauthorized purposes
+
+## 4. Term and Termination
+- License remains effective until terminated
+- May be terminated for breach of any terms
+- Upon termination, you must cease all use of the Software
+
+## 5. Updates and Support
+- Updates may be provided at the discretion of the developer
+- Technical support availability may vary based on license type
+
+## 6. Warranty Disclaimer
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND.
+
+## 7. Limitation of Liability
+IN NO EVENT SHALL THE DEVELOPER BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OF THE SOFTWARE.
+
+## 8. General
+- This Agreement constitutes the entire agreement between parties
+- Any modifications must be in writing
+- If any provision is found invalid, remaining provisions stay in effect
+
+By using the Software, you acknowledge that you have read and agree to these terms.

@@ -3,7 +3,7 @@
   "name": "RecorderPro",
   "version": "1.0",
   "description": "Record Videos, Educate People, Pro Version allows capturing face mesh",
-  "permissions": ["tabs"],
+  "permissions": [],
   "action": {
     "default_icon": {
       "16": "icon16.png",

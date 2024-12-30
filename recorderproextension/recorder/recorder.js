@@ -11,6 +11,7 @@ let timerInterval;
 let screenStream = null;
 let micStream = null;
 let combinedStream = null;
+let recordMode = 'screen'; // 'screen' or 'audio'
 
 // Initialize IndexedDB
 let db;
@@ -19,6 +20,23 @@ const request = indexedDB.open('ScreenRecorderDB', 4);
 request.onerror = (event) => {
     console.error('IndexedDB error:', event.target.errorCode);
 };
+
+// Check if user has seen welcome modal
+let hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+const firstModal = document.getElementById('firstmodal');
+
+if (hasSeenWelcome!='true') {
+    firstModal.style.display = 'block';
+    
+    // Close button handler for welcome modal
+    document.querySelector('#closemodal').addEventListener('click', () => {
+        firstModal.style.display = 'none';
+        localStorage.setItem('hasSeenWelcome', 'true');
+    });
+} else {
+    firstModal.style.display = 'none';
+}
+
 
 request.onupgradeneeded = (event) => {
     db = event.target.result;
@@ -51,8 +69,30 @@ function stopTimer() {
     timerElement.textContent = '';
 }
 
-// Main recording logic
-recordBtn.addEventListener('click', async () => {
+// Button click handlers
+document.getElementById('facemesh-btn').addEventListener('click', () => {
+    window.location.href = 'https://lessontime.ai/recorderpro';
+});
+
+document.getElementById('soundrecord-btn').addEventListener('click', () => {
+    recordMode = 'audio';
+    startRecording();
+});
+
+document.getElementById('record-btn').addEventListener('click', () => {
+    recordMode = 'screen';
+    startRecording();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const closePlayerBtn = document.getElementById('playerclose');
+    if (closePlayerBtn) {
+        closePlayerBtn.addEventListener('click', closeVideoPlayer);
+    }
+});
+
+// Recording functions
+async function startRecording() {
     if (!recording) {
         recording = true;
         recordBtn.textContent = 'Stop Recording';
@@ -61,14 +101,21 @@ recordBtn.addEventListener('click', async () => {
         downloadBtn.style.display = 'none';
 
         try {
-            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            combinedStream = new MediaStream([
-                ...screenStream.getTracks(), 
-                ...micStream.getTracks()
-            ]);
+            
+            if (recordMode === 'screen') {
+                screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                combinedStream = new MediaStream([
+                    ...screenStream.getTracks(), 
+                    ...micStream.getTracks()
+                ]);
+            } else {
+                combinedStream = new MediaStream([...micStream.getTracks()]);
+            }
 
-            mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4;' });
+            mediaRecorder = new MediaRecorder(combinedStream, { 
+                mimeType: recordMode === 'screen' ? 'video/mp4' : 'audio/webm'
+            });
             
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
@@ -78,9 +125,11 @@ recordBtn.addEventListener('click', async () => {
 
             mediaRecorder.onstop = async () => {
                 try {
-                    const blob = new Blob(recordedChunks, { type: 'video/mp4' });
-                    const thumbnail = await generateThumbnail(blob);
-                    await saveRecording(blob, thumbnail, 'screen');
+                    const blob = new Blob(recordedChunks, { 
+                        type: recordMode === 'screen' ? 'video/mp4' : 'audio/webm' 
+                    });
+                    const thumbnail = recordMode === 'screen' ? await generateThumbnail(blob) : null;
+                    await saveRecording(blob, thumbnail, recordMode);
                     recordedChunks = [];
                 } catch (error) {
                     console.error('Error processing recording:', error);
@@ -97,13 +146,14 @@ recordBtn.addEventListener('click', async () => {
     } else {
         stopRecording();
     }
-});
+}
 
 function stopRecording() {
     recording = false;
     recordBtn.textContent = 'Start Recording';
     recordBtn.classList.remove('recording');
     stopTimer();
+    recordMode = 'screen'; // Reset to default mode
 
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
@@ -132,16 +182,12 @@ async function generateThumbnail(blob) {
         video.src = url;
 
         video.addEventListener('loadeddata', () => {
-            // Create a canvas element
             const canvas = document.createElement('canvas');
-            canvas.width = 320;  // Set fixed thumbnail size
+            canvas.width = 320;
             canvas.height = 180;
             const ctx = canvas.getContext('2d');
-            
-            // Draw the video frame to canvas
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Convert canvas to blob
             canvas.toBlob((thumbnailBlob) => {
                 URL.revokeObjectURL(url);
                 video.remove();
@@ -188,7 +234,6 @@ async function loadRecordings() {
     const recordings = [];
     const thumbnails = new Map();
 
-    // Load recordings and thumbnails
     await Promise.all([
         new Promise((resolve, reject) => {
             transaction.objectStore('recordings').openCursor().onsuccess = (event) => {
@@ -210,7 +255,6 @@ async function loadRecordings() {
         })
     ]);
 
-    // Render recordings list
     const recordingsList = document.getElementById('recordings-list');
     recordingsList.innerHTML = '';
     
@@ -226,22 +270,18 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
     const listItem = document.createElement('li');
     listItem.className = 'recording-item';
 
-    // Thumbnail
     const thumbnailImg = document.createElement('img');
     thumbnailImg.src = thumbnailUrl;
     listItem.appendChild(thumbnailImg);
 
-    // Info
     const infoDiv = document.createElement('div');
     infoDiv.className = 'recording-info';
     infoDiv.innerHTML = `<p>Recorded on: ${new Date(recording.timestamp).toLocaleString()} (${recording.type})</p>`;
     listItem.appendChild(infoDiv);
 
-    // Actions
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'recording-actions';
 
-    // Play button
     const playLink = document.createElement('a');
     playLink.textContent = 'Play';
     playLink.href = '#';
@@ -253,7 +293,6 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
         document.getElementById("playercontainer").style.display = "block";
     };
 
-    // Download button
     const downloadLink = document.createElement('a');
     downloadLink.textContent = 'Download';
     downloadLink.href = '#';
@@ -261,11 +300,10 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
         e.preventDefault();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(recording.blob);
-        a.download = `recording_${recordingId}.mp4`;
+        a.download = `recording_${recordingId}.${recording.type === 'screen' ? 'mp4' : 'webm'}`;
         a.click();
     };
 
-    // Delete button
     const deleteLink = document.createElement('a');
     deleteLink.textContent = 'Delete';
     deleteLink.href = '#';

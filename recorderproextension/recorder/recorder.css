@@ -34,6 +34,7 @@ h1 {
     border-radius: 5px;
     cursor: pointer;
     width: 100%;
+    margin: 2px;
 }
 #record-btn.recording {
     background-color: #dc3545;
@@ -147,3 +148,54 @@ h1 {
     height: 100%;
     width: 100%;
 }
+
+#firstmodal {
+    background: linear-gradient(145deg, #ffffff, #f0f0f0);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    padding: 30px;
+    margin: 20px auto;
+    max-width: 600px;
+    animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+#firstmodal .subtitle {
+    color: #333;
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin: 15px 0;
+}
+
+#firstmodal a {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    margin-right: 15px;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+
+#firstmodal button {
+    padding: 12px 24px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
