@@ -323,4 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closePlayerBtn) {
         closePlayerBtn.addEventListener('click', closeVideoPlayer);
     }
+    document.getElementById('gopro-btn').addEventListener('click', () => {
+        window.open('https://chromewebstore.google.com/detail/recorderpro/aghdckagfpohppcooliibdcicakcahnm', '_blank');
+    });
 });

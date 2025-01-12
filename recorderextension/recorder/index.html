@@ -11,9 +11,12 @@
     <div class="recorder-container">
         <div class="recorder-controls">
             <div class="container">
-                <h1> <img src="recorder.svg" style="padding-top: 10px;"></img> Screen Recorder</h1>
+                <h1>
+                    <img src="recorder.svg" alt="Recorder Icon" style="padding-top: 10px;"> Screen Recorder
+                </h1>
                 <p class="subtitle">Record your screen and voice, save as mp4</p>
                 <p class="subtitle">Please select entire screen if you want to record all applications</p>
+                <p class="subtitle">Videos are stored in your browser local storage, download to save to the filesystem</p>
                 <button id="record-btn" class="actionbutton">Start Recording</button>
                 <p class="timer" id="timer"></p>
                 <button id="download-btn">Download Latest Recording</button>
@@ -26,18 +29,20 @@
                 </ul>
             </div>
         </div>
-
     </div>
 
     <video id="screenvideo" autoplay muted playsinline style="display: none;"></video>
 
-    <script src="recorder.js"> </script>
-    <div id="playercontainer"  style="display: none;"> 
+    <script src="recorder.js"></script>
+    
+    <div id="playercontainer" style="display: none;">
         <button id="playerclose" class="actionbutton">Close</button>
-        <video id="videoplayer" ></video>
+        <video id="videoplayer"></video>
     </div>
-    <footer style="
-    position: absolute;
-    bottom: 0px;">https://github.com/google-ai-edge/mediapipe/blob/master/LICENSE</footer>
+    
+    <footer>
+        <span>Go to Pro Version</span>
+        <button id="gopro-btn" class="actionbutton">>></button>
+    </footer>
 </body>
 </html>
