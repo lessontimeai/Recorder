@@ -324,3 +324,27 @@ document.addEventListener('DOMContentLoaded', () => {
         closePlayerBtn.addEventListener('click', closeVideoPlayer);
     }
 });
+
+document.getElementById('delete-all-btn')?.addEventListener('click', async () => {
+    if (confirm('Are you sure you want to delete ALL recordings? This action cannot be undone!')) {
+        await deleteAllRecordings();
+    }
+});
+
+function deleteAllRecordings() {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['recordings', 'thumbnails'], 'readwrite');
+        
+        transaction.objectStore('recordings').clear();
+        transaction.objectStore('thumbnails').clear();
+        
+        transaction.oncomplete = () => {
+            loadRecordings();
+            resolve();
+        };
+        
+        transaction.onerror = (event) => {
+            reject(event.target.error);
+        };
+    });
+}
