@@ -29,10 +29,21 @@ if (hasSeenWelcome!='true') {
     firstModal.style.display = 'block';
     
     // Close button handler for welcome modal
-    document.querySelector('#closemodal').addEventListener('click', () => {
+    document.querySelector('#sfacebook').addEventListener('click', () => {
         firstModal.style.display = 'none';
         localStorage.setItem('hasSeenWelcome', 'true');
     });
+
+    document.querySelector('#stwitter').addEventListener('click', () => {
+        firstModal.style.display = 'none';
+        localStorage.setItem('hasSeenWelcome', 'true');
+    });
+
+    document.querySelector('#spay').addEventListener('click', () => {
+        firstModal.style.display = 'none';
+        localStorage.setItem('hasSeenWelcome', 'true');
+    });
+
 } else {
     firstModal.style.display = 'none';
 }

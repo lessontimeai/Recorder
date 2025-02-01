@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RecorderPro",
-  "version": "1.1",
+  "version": "1.2",
   "description": "Record your screen with simple clicks + Add face mesh to corner",
   "permissions": [],
   "action": {
