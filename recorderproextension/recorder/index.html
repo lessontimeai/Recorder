@@ -12,16 +12,27 @@
         <div class="recorder-controls">
             <div class="container">
                 <h1> <img src="recorder.svg" style="padding-top: 10px;"></img> Screen Recorder Pro</h1>
-                <div id="firstmodal" style="background-color: rgb(215, 203, 187); margin: 10px;">
-                    <p class="subtitle">Welcome to LessonTime Recorder Pro</p>
-                    <p class="subtitle">Capture your screen with face mesh feature, 
-                                        Save instantly as MP4 files</p>
-                    <p class="subtitle">To begin recording, please select "Entire Screen" to capture all applications
-                    </p>
-                    <a id="spay" href="https://buy.stripe.com/fZe8wR3ahc72fwQ3ci"> Pay </a>
+                
+                <!-- Improved Welcome Modal -->
+                <div id="firstmodal" class="pro-modal">
+                    <h2 class="modal-title">Welcome to LessonTime Recorder Pro</h2>
+                    
+                    <div class="features-container">
+                        <p class="feature"><span class="feature-icon">✓</span> Easy capture for Screen and Audio</p>
+                        <p class="feature"><span class="feature-icon">✓</span> Unique face mesh technology for preserving privacy</p>
+                        <p class="feature"><span class="feature-icon">✓</span> Save instantly as MP4 files</p>
                     </div>
-
+                    
+                    <div class="pro-callout">
+                        <p class="pro-status">You're using the trial version</p>
+                        <p class="pro-offer">Upgrade to Pro for unlimited recording time and all premium features</p>
+                    </div>
+                    
+                    <a id="spay" href="https://buy.stripe.com/fZe8wR3ahc72fwQ3ci"> Use now - Only $5 </a>
+                    
+                    <p class="start-tip">To begin recording, please select "Entire Screen" to capture all applications</p>
                 </div>
+                
                 <button id="record-btn" class="actionbutton">Screen Recording</button>
                 <button id="soundrecord-btn" class="actionbutton">Sound Recording</button>
                 <button id="facemesh-btn" class="actionbutton" style="background-color: blue;">Recording with Face Mesh</button>
@@ -37,8 +48,6 @@
             </div>
             
         </div>
-
-
     </div>
 
     <video id="screenvideo" autoplay muted playsinline style="display: none;"></video>

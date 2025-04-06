@@ -22,22 +22,12 @@ request.onerror = (event) => {
 };
 
 // Check if user has seen welcome modal
-let hasSeenWelcome = false;//localStorage.getItem('hasSeenWelcome');
+let hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
 const firstModal = document.getElementById('firstmodal');
 
 if (hasSeenWelcome!='true') {
     firstModal.style.display = 'block';
     
-    // Close button handler for welcome modal
-    document.querySelector('#sfacebook').addEventListener('click', () => {
-        firstModal.style.display = 'none';
-        localStorage.setItem('hasSeenWelcome', 'true');
-    });
-
-    document.querySelector('#stwitter').addEventListener('click', () => {
-        firstModal.style.display = 'none';
-        localStorage.setItem('hasSeenWelcome', 'true');
-    });
 
     document.querySelector('#spay').addEventListener('click', () => {
         firstModal.style.display = 'none';

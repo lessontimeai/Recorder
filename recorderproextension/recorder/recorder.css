@@ -213,3 +213,22 @@ h1 {
 #delete-all-btn:hover {
     background: #bb2d3b;
 }
+
+
+.pro-callout {
+    background-color: #e9e4da;
+    border-left: 4px solid #ff9800;
+    padding: 10px 15px;
+    margin: 15px 0;
+    border-radius: 4px;
+}
+
+.pro-status {
+    color: #555;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.pro-offer {
+    color: #333;
+}
