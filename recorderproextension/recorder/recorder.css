@@ -198,3 +198,18 @@ h1 {
     transition: background-color 0.3s, transform 0.2s;
 }
 
+#delete-all-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 10px 0;
+    width: 200px;
+    left: 0px;
+}
+
+#delete-all-btn:hover {
+    background: #bb2d3b;
+}
