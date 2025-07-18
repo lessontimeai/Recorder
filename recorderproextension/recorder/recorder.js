@@ -120,7 +120,15 @@ async function startRecording() {
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
             if (recordMode === 'screen') {
-                screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                // 4K recording with optimized settings
+                screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: {
+                        width: { ideal: 3840, max: 3840 },
+                        height: { ideal: 2160, max: 2160 },
+                        frameRate: { ideal: 30, max: 30 } // 30fps for 4K stability
+                    },
+                    audio: false
+                });
                 combinedStream = new MediaStream([
                     ...screenStream.getTracks(), 
                     ...micStream.getTracks()
@@ -129,9 +137,19 @@ async function startRecording() {
                 combinedStream = new MediaStream([...micStream.getTracks()]);
             }
 
-            mediaRecorder = new MediaRecorder(combinedStream, { 
-                mimeType: recordMode === 'screen' ? 'video/mp4' : 'audio/webm'
-            });
+            // 4K WebM recording with high bitrate for excellent quality
+            const options = recordMode === 'screen' ? {
+                mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') 
+                    ? 'video/webm;codecs=vp9'
+                    : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+                    ? 'video/webm;codecs=vp8'
+                    : 'video/webm',
+                videoBitsPerSecond: 20000000 // 20 Mbps for 4K quality
+            } : {
+                mimeType: 'audio/webm'
+            };
+
+            mediaRecorder = new MediaRecorder(combinedStream, options);
             
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
@@ -142,7 +160,7 @@ async function startRecording() {
             mediaRecorder.onstop = async () => {
                 try {
                     const blob = new Blob(recordedChunks, { 
-                        type: recordMode === 'screen' ? 'video/mp4' : 'audio/webm' 
+                        type: recordMode === 'screen' ? 'video/webm' : 'audio/webm' 
                     });
                     const thumbnail = recordMode === 'screen' ? await generateThumbnail(blob) : null;
                     await saveRecording(blob, thumbnail, recordMode);
@@ -316,7 +334,7 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
         e.preventDefault();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(recording.blob);
-        a.download = `recording_${recordingId}.${recording.type === 'screen' ? 'mp4' : 'webm'}`;
+        a.download = `recording_${recordingId}.webm`;
         a.click();
     };
 
@@ -371,9 +389,15 @@ function closeVideoPlayer() {
     playerContainer.style.display = 'none';
 }
 
-document.getElementById('delete-all-btn')?.addEventListener('click', async () => {
-    if (confirm('Are you sure you want to delete ALL recordings? This action cannot be undone!')) {
-        await deleteAllRecordings();
+document.addEventListener('DOMContentLoaded', () => {
+    // Delete all recordings button
+    const deleteAllBtn = document.getElementById('delete-all-btn');
+    if (deleteAllBtn) {
+        deleteAllBtn.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to delete ALL recordings? This action cannot be undone!')) {
+                await deleteAllRecordings();
+            }
+        });
     }
 });
 
