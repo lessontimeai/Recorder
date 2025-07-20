@@ -137,16 +137,31 @@ async function startRecording() {
                 combinedStream = new MediaStream([...micStream.getTracks()]);
             }
 
-            // 4K WebM recording with high bitrate for excellent quality
-            const options = recordMode === 'screen' ? {
-                mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') 
-                    ? 'video/webm;codecs=vp9'
-                    : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-                    ? 'video/webm;codecs=vp8'
-                    : 'video/webm',
-                videoBitsPerSecond: 20000000 // 20 Mbps for 4K quality
-            } : {
-                mimeType: 'audio/webm'
+            // 4K MP4 recording with smart codec fallbacks
+            let mimeType, fileExtension;
+            
+            if (recordMode === 'screen') {
+                if (MediaRecorder.isTypeSupported('video/mp4')) {
+                    mimeType = 'video/mp4';
+                    fileExtension = 'mp4';
+                } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
+                    mimeType = 'video/webm;codecs=h264';  // H.264 codec, save as MP4
+                    fileExtension = 'mp4';
+                } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                    mimeType = 'video/webm;codecs=vp9';
+                    fileExtension = 'webm';
+                } else {
+                    mimeType = 'video/webm';
+                    fileExtension = 'webm';
+                }
+            } else {
+                mimeType = 'audio/webm';
+                fileExtension = 'webm';
+            }
+            
+            const options = {
+                mimeType: mimeType,
+                videoBitsPerSecond: recordMode === 'screen' ? 20000000 : undefined // 20 Mbps for 4K quality
             };
 
             mediaRecorder = new MediaRecorder(combinedStream, options);
@@ -159,11 +174,9 @@ async function startRecording() {
 
             mediaRecorder.onstop = async () => {
                 try {
-                    const blob = new Blob(recordedChunks, { 
-                        type: recordMode === 'screen' ? 'video/webm' : 'audio/webm' 
-                    });
+                    const blob = new Blob(recordedChunks, { type: mimeType });
                     const thumbnail = recordMode === 'screen' ? await generateThumbnail(blob) : null;
-                    await saveRecording(blob, thumbnail, recordMode);
+                    await saveRecording(blob, thumbnail, recordMode, fileExtension);
                     recordedChunks = [];
                 } catch (error) {
                     console.error('Error processing recording:', error);
@@ -238,7 +251,7 @@ async function generateThumbnail(blob) {
 }
 
 // Database operations
-function saveRecording(blob, thumbnail, type) {
+function saveRecording(blob, thumbnail, type, fileExtension) {
     const transaction = db.transaction(['recordings', 'thumbnails'], 'readwrite');
     const recordingsStore = transaction.objectStore('recordings');
     const thumbnailsStore = transaction.objectStore('thumbnails');
@@ -248,7 +261,8 @@ function saveRecording(blob, thumbnail, type) {
         id: recordingId,
         blob: blob,
         timestamp: recordingId,
-        type: type
+        type: type,
+        fileExtension: fileExtension || 'webm' // Default to webm if not provided
     };
 
     recordingsStore.put(recording).onsuccess = () => {
@@ -310,7 +324,7 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
 
     const infoDiv = document.createElement('div');
     infoDiv.className = 'recording-info';
-    infoDiv.innerHTML = `<p>Recorded on: ${new Date(recording.timestamp).toLocaleString()} (${recording.type})</p>`;
+    infoDiv.innerHTML = `<p>Recorded on: ${new Date(recording.timestamp).toLocaleString()} (${recording.type} - ${recording.fileExtension?.toUpperCase() || 'WEBM'})</p>`;
     listItem.appendChild(infoDiv);
 
     const actionsDiv = document.createElement('div');
@@ -334,7 +348,7 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
         e.preventDefault();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(recording.blob);
-        a.download = `recording_${recordingId}.webm`;
+        a.download = `recording_${recordingId}.${recording.fileExtension}`;
         a.click();
     };
 
