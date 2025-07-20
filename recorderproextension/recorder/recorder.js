@@ -13,20 +13,6 @@ let micStream = null;
 let combinedStream = null;
 let recordMode = 'screen'; // 'screen' or 'audio'
 
-function gtag_report_conversion(url) {
-  var callback = function () {
-    if (typeof(url) != 'undefined') {
-      window.location = url;
-    }
-  };
-  gtag('event', 'conversion', {
-      'send_to': 'AW-16535980875/wYPsCMWxp8UaEMuW_Mw9',
-      'transaction_id': '',
-      'event_callback': callback
-  });
-  return false;
-}
-
 // Initialize IndexedDB
 let db;
 const request = indexedDB.open('ScreenRecorderDB', 4);
@@ -46,7 +32,6 @@ if (hasSeenWelcome!='true') {
     document.querySelector('#spay').addEventListener('click', () => {
         firstModal.style.display = 'none';
         localStorage.setItem('hasSeenWelcome', 'true');
-        gtag_report_conversion('tinyurl.com/recorderpro');
     });
 
 } else {
@@ -161,7 +146,7 @@ async function startRecording() {
             
             const options = {
                 mimeType: mimeType,
-                videoBitsPerSecond: recordMode === 'screen' ? 20000000 : undefined // 20 Mbps for 4K quality
+                videoBitsPerSecond: recordMode === 'screen' ? 10000000 : undefined // 20 Mbps for 4K quality
             };
 
             mediaRecorder = new MediaRecorder(combinedStream, options);
@@ -185,7 +170,7 @@ async function startRecording() {
                 }
             };
 
-            mediaRecorder.start();
+            mediaRecorder.start(1000);
         } catch (err) {
             console.error('Error accessing media devices:', err);
             stopRecording();
