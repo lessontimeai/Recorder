@@ -205,9 +205,9 @@ h1 {
     padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
-    margin: 10px 0;
+    margin: 10px auto;
     width: 200px;
-    left: 0px;
+    display: block;
 }
 
 #delete-all-btn:hover {
