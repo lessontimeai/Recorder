@@ -38,6 +38,16 @@ if (hasSeenWelcome!='true') {
     firstModal.style.display = 'none';
 }
 
+function checkNumberofTrials(){
+    let trialcount = localStorage.getItem('trialcount');
+    if(trialcount==null){
+        localStorage.setItem('trialcount', '1');
+    }else{
+        localStorage.setItem('trialcount', parseInt(trialcount)+1);
+    }
+    return trialcount;
+}
+
 
 request.onupgradeneeded = (event) => {
     db = event.target.result;
@@ -94,6 +104,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Recording functions
 async function startRecording() {
+    let trialcount = checkNumberofTrials();
+    if(trialcount>3 && hasSeenWelcome==null){
+        alert('You have reached the maximum number of trials. Please upgrade to Pro to continue recording.');
+        return;
+    }
     if (!recording) {
         recording = true;
         recordBtn.textContent = 'Stop Recording';
