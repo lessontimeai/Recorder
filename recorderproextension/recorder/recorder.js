@@ -125,7 +125,7 @@ async function startRecording() {
                     video: {
                         width: { ideal: 3840, max: 3840 },
                         height: { ideal: 2160, max: 2160 },
-                        frameRate: { ideal: 30, max: 30 } // 30fps for 4K stability
+                        frameRate: { ideal: 30, max: 30 }
                     },
                     audio: false
                 });
@@ -161,7 +161,9 @@ async function startRecording() {
             
             const options = {
                 mimeType: mimeType,
-                videoBitsPerSecond: recordMode === 'screen' ? 10000000 : undefined // 20 Mbps for 4K quality
+                videoBitsPerSecond: 20000000,
+                videoKeyFrameIntervalCount: 30, // Or every 30 frames
+                videoBitrateMode: "variable" // Better handling of variable content
             };
 
             mediaRecorder = new MediaRecorder(combinedStream, options);
@@ -197,7 +199,7 @@ async function startRecording() {
 
 function stopRecording() {
     recording = false;
-    recordBtn.textContent = 'Start Recording';
+    recordBtn.textContent = 'Screen Recording';
     recordBtn.classList.remove('recording');
     stopTimer();
     recordMode = 'screen'; // Reset to default mode
@@ -432,5 +434,8 @@ function deleteAllRecordings() {
         };
     });
 }
+
+
+
 
 
