@@ -95,14 +95,33 @@ document.getElementById('record-btn').addEventListener('click', () => {
     startRecording();
 });
 
+// Wire up listeners that depend on the DOM being ready.
 document.addEventListener('DOMContentLoaded', () => {
-    const closePlayerBtn = document.getElementById('playerclose');
-    if (closePlayerBtn) {
-        closePlayerBtn.addEventListener('click', closeVideoPlayer);
-    }
+    document.getElementById('playerclose')?.addEventListener('click', closeVideoPlayer);
+
+    document.getElementById('delete-all-btn')?.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to delete ALL recordings? This action cannot be undone!')) {
+            await deleteAllRecordings();
+        }
+    });
 });
 
 // Recording functions
+
+// Choose a video container/codec that is both recordable and reliably
+// playable in the browser, preferring real MP4, then native WebM codecs.
+function pickVideoFormat() {
+    const candidates = [
+        { mimeType: 'video/mp4;codecs=avc1', fileExtension: 'mp4' },
+        { mimeType: 'video/mp4', fileExtension: 'mp4' },
+        { mimeType: 'video/webm;codecs=vp9', fileExtension: 'webm' },
+        { mimeType: 'video/webm;codecs=vp8', fileExtension: 'webm' },
+        { mimeType: 'video/webm', fileExtension: 'webm' },
+    ];
+    return candidates.find(c => MediaRecorder.isTypeSupported(c.mimeType))
+        ?? { mimeType: 'video/webm', fileExtension: 'webm' };
+}
+
 async function startRecording() {
     let trialcount = checkNumberofTrials();
     if(trialcount>3 && hasSeenWelcome==null){
@@ -116,12 +135,17 @@ async function startRecording() {
         startTimer();
         downloadBtn.style.display = 'none';
 
+        // Clear any chunks left over from a previous recording that errored
+        // out before onstop could reset them.
+        recordedChunks = [];
+
         try {
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
+            let videoBitsPerSecond;
             if (recordMode === 'screen') {
                 // 4K recording with optimized settings
-                screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
                     video: {
                         width: { ideal: 3840, max: 3840 },
                         height: { ideal: 2160, max: 2160 },
@@ -129,42 +153,39 @@ async function startRecording() {
                     },
                     audio: false
                 });
+
+                // Hint the encoder that this is sharp, text-heavy content. Without
+                // this, screen captures are treated as "motion" and the encoder
+                // smears/flickers fine edges (menu bars, the top of the screen).
+                const videoTrack = screenStream.getVideoTracks()[0];
+                videoTrack.contentHint = 'detail';
+
+                // Size the bitrate to the actual capture resolution. A flat 2 Mbps
+                // starves a 4K stream and causes flicker; ~0.12 bits/pixel/frame
+                // keeps the encoder fed across resolutions.
+                const { width = 1920, height = 1080, frameRate = 30 } = videoTrack.getSettings();
+                videoBitsPerSecond = Math.min(Math.round(width * height * frameRate * 0.12), 40000000);
+
                 combinedStream = new MediaStream([
-                    ...screenStream.getTracks(), 
+                    ...screenStream.getTracks(),
                     ...micStream.getTracks()
                 ]);
             } else {
                 combinedStream = new MediaStream([...micStream.getTracks()]);
             }
 
-            // 4K MP4 recording with smart codec fallbacks
-            let mimeType, fileExtension;
-            
-            if (recordMode === 'screen') {
-                if (MediaRecorder.isTypeSupported('video/mp4')) {
-                    mimeType = 'video/mp4';
-                    fileExtension = 'mp4';
-                } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
-                    mimeType = 'video/webm;codecs=h264';  // H.264 codec, save as MP4
-                    fileExtension = 'mp4';
-                } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-                    mimeType = 'video/webm;codecs=vp9';
-                    fileExtension = 'webm';
-                } else {
-                    mimeType = 'video/webm';
-                    fileExtension = 'webm';
-                }
-            } else {
-                mimeType = 'audio/webm';
-                fileExtension = 'webm';
+            // Pick the best codec the browser can both RECORD and PLAY BACK.
+            // Note: Chrome can record "video/webm;codecs=h264" but cannot decode
+            // it, which produces files with audio but a black picture — so it is
+            // deliberately excluded here.
+            const { mimeType, fileExtension } = recordMode === 'screen'
+                ? pickVideoFormat()
+                : { mimeType: 'audio/webm', fileExtension: 'webm' };
+
+            const options = { mimeType };
+            if (videoBitsPerSecond) {
+                options.videoBitsPerSecond = videoBitsPerSecond;
             }
-            
-            const options = {
-                mimeType: mimeType,
-                videoBitsPerSecond: 20000000,
-                videoKeyFrameIntervalCount: 30, // Or every 30 frames
-                videoBitrateMode: "variable" // Better handling of variable content
-            };
 
             mediaRecorder = new MediaRecorder(combinedStream, options);
             
@@ -252,6 +273,16 @@ async function generateThumbnail(blob) {
     });
 }
 
+// Format a timestamp (epoch ms) as a sortable, filename-safe string,
+// e.g. 2026-06-09 14:05:37 -> "2026-06-09_14-05-37"
+function formatTimestamp(ts) {
+    const d = new Date(ts);
+    const pad = (n) => String(n).padStart(2, '0');
+    const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const time = `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+    return `${date}_${time}`;
+}
+
 // Database operations
 function saveRecording(blob, thumbnail, type, fileExtension) {
     const transaction = db.transaction(['recordings', 'thumbnails'], 'readwrite');
@@ -337,10 +368,7 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
     playLink.href = '#';
     playLink.onclick = (e) => {
         e.preventDefault();
-        const videoPlayer = document.getElementById('videoplayer');
-        videoPlayer.src = URL.createObjectURL(recording.blob);
-        videoPlayer.controls = true;
-        document.getElementById("playercontainer").style.display = "block";
+        openVideoPlayer(recording.blob);
     };
 
     const downloadLink = document.createElement('a');
@@ -348,10 +376,12 @@ function appendRecordingItem(recordingId, recording, thumbnailUrl) {
     downloadLink.href = '#';
     downloadLink.onclick = (e) => {
         e.preventDefault();
+        const url = URL.createObjectURL(recording.blob);
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(recording.blob);
-        a.download = `recording_${recordingId}.${recording.fileExtension}`;
+        a.href = url;
+        a.download = `recording_${formatTimestamp(recording.timestamp)}.${recording.fileExtension}`;
         a.click();
+        URL.revokeObjectURL(url);
     };
 
     const deleteLink = document.createElement('a');
@@ -397,25 +427,39 @@ function deleteRecording(recordingId) {
 }
 
 // Video player controls
+let currentPlayerUrl = null;
+
+function openVideoPlayer(blob) {
+    const videoPlayer = document.getElementById('videoplayer');
+    const playerContainer = document.getElementById('playercontainer');
+
+    // Release the URL from any previously played recording.
+    if (currentPlayerUrl) {
+        URL.revokeObjectURL(currentPlayerUrl);
+    }
+    currentPlayerUrl = URL.createObjectURL(blob);
+
+    playerContainer.style.display = 'block';
+    videoPlayer.controls = true;
+    videoPlayer.src = currentPlayerUrl;
+    videoPlayer.load(); // force the element to pick up the new source
+    videoPlayer.play().catch(() => { /* user can press play manually */ });
+}
+
 function closeVideoPlayer() {
     const videoPlayer = document.getElementById('videoplayer');
     const playerContainer = document.getElementById('playercontainer');
-    videoPlayer.pause();
-    videoPlayer.src = '';
-    playerContainer.style.display = 'none';
-}
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Delete all recordings button
-    const deleteAllBtn = document.getElementById('delete-all-btn');
-    if (deleteAllBtn) {
-        deleteAllBtn.addEventListener('click', async () => {
-            if (confirm('Are you sure you want to delete ALL recordings? This action cannot be undone!')) {
-                await deleteAllRecordings();
-            }
-        });
+    videoPlayer.pause();
+    videoPlayer.removeAttribute('src');
+    videoPlayer.load();
+    playerContainer.style.display = 'none';
+
+    if (currentPlayerUrl) {
+        URL.revokeObjectURL(currentPlayerUrl);
+        currentPlayerUrl = null;
     }
-});
+}
 
 function deleteAllRecordings() {
     return new Promise((resolve, reject) => {
@@ -434,8 +478,4 @@ function deleteAllRecordings() {
         };
     });
 }
-
-
-
-
 
